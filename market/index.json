@@ -60,7 +60,7 @@
       },
       "icon": "icons/my-fish-180.png",
       "author": "my fish contributors",
-      "homepage": "https://github.com/linkl-ike/my-fish",
+      "homepage": "https://github.com/linkl-ike/my-fish#readme",
       "repository": {
         "url": "https://github.com/linkl-ike/my-fish"
       },
@@ -92,9 +92,11 @@
       "versions": [
         {
           "version": "1.0.0",
-          "publishTimestamp": 1794936810,
+          "publishTimestamp": 1794937925,
           "source": {
-            "type": "npm"
+            "type": "git",
+            "url": "https://github.com/linkl-ike/my-fish",
+            "commit": "33392e0810d92bfc85319926836b6ff49fb9bc42"
           },
           "engines": {
             "dsh": ">=0.2.1"
