@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Fusion panel">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#0f172a"/>
+  <rect x="12" y="14" width="40" height="9" rx="4" fill="#38bdf8" opacity="0.9"/>
+  <rect x="12" y="27" width="26" height="9" rx="4" fill="#38bdf8" opacity="0.65"/>
+  <rect x="12" y="40" width="32" height="9" rx="4" fill="#38bdf8" opacity="0.4"/>
+  <circle cx="47" cy="46" r="7" fill="#34d399"/>
+  <path d="M44 46 l2.2 2.2 4 -4.4" stroke="#0f172a" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

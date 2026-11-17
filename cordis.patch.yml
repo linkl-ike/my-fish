@@ -1,0 +1,14 @@
+- insert:
+    - id: my-fish
+      name: 'my-fish'
+      # v2.0：鱼引擎（fish-core）已内置在 ./fish，本 bundle 同时启动鱼和面板；
+      # profile 里不再单独安装 dsh-fish-soul。
+      # v0.3 起路径可配置。不填就用默认值（或对应环境变量）。
+      # 换机器 / 换安装目录时，取消注释并改路径：
+      # config:
+      #   snowlumaDir: 'C:\Users\<你的用户名>\SnowLuma'
+      #   shimDir: 'C:\Users\<你的用户名>\fish-tts-shim'
+      #   fishHome: 'C:\Users\<你的用户名>\.dsh'
+      #   surfcoreData: 'C:\Users\<你的用户名>\.dsh\surfcore'
+      #   surfcoreRoot: 'C:\Users\<你的用户名>\surfcore'
+      #   patches: 'C:\Users\<你的用户名>\fish-soul-patches'

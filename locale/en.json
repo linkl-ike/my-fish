@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "my fish",
+    "description": "Runs a virtual fish companion inside DSH: persona, per-person long-term memory, QQ/Bilibili/Douyin chat, voice, diary and backups, plus a 17-tab control panel for everything.",
+    "detail": "docs/DETAIL.md"
+  }
+}

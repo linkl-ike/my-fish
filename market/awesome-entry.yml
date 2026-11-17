@@ -1,0 +1,15 @@
+url: https://github.com/OWNER/my-fish
+
+name: OWNER/my-fish
+
+category: fun
+
+description:
+  en: 'A virtual fish companion for DeepSeek Harness: persona, per-person long-term memory, QQ/Bilibili/Douyin chat, voice, diary and backups, plus a 17-tab control panel.'
+  zh: '在 DSH 里养一条鱼：人格、按人长期记忆、QQ/B站/抖音聊天、语音、日记与备份，外加 17 个标签页的一体化面板。'
+
+# 可选：GitHub 托管的位图（png/jpg/webp，方形 180px 最佳；SVG 会被拒）
+icon: https://raw.githubusercontent.com/OWNER/my-fish/main/assets/icon-180.png
+
+# 可选：不发布 npm 时，用 GitHub Release 的预构建 tgz
+# tarball: https://github.com/OWNER/my-fish/releases/download/v1.0.0/my-fish-1.0.0.tgz

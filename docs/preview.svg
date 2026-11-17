@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="300" viewBox="0 0 640 300" role="img" aria-label="my fish 面板与鱼">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1320"/>
+      <stop offset="1" stop-color="#16233a"/>
+    </linearGradient>
+    <linearGradient id="fish" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffb15c"/>
+      <stop offset="1" stop-color="#f2703f"/>
+    </linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b7de0" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#1b4f96" stop-opacity="0.15"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="300" rx="18" fill="url(#bg)"/>
+  <g opacity="0.9">
+    <rect x="292" y="34" width="316" height="232" rx="14" fill="#111c2e" stroke="#2a3d5c" stroke-width="1.5"/>
+    <rect x="306" y="48" width="60" height="14" rx="7" fill="#2f6fe4"/>
+    <rect x="374" y="48" width="52" height="14" rx="7" fill="#243a5e"/>
+    <rect x="434" y="48" width="52" height="14" rx="7" fill="#243a5e"/>
+    <rect x="494" y="48" width="52" height="14" rx="7" fill="#243a5e"/>
+    <rect x="306" y="78" width="140" height="78" rx="10" fill="#16253c" stroke="#2a3d5c" stroke-width="1"/>
+    <rect x="318" y="90" width="64" height="9" rx="4.5" fill="#7fb2ff" opacity="0.85"/>
+    <rect x="318" y="108" width="112" height="7" rx="3.5" fill="#3d577d"/>
+    <rect x="318" y="124" width="92" height="7" rx="3.5" fill="#3d577d"/>
+    <rect x="318" y="140" width="76" height="7" rx="3.5" fill="#3d577d"/>
+    <rect x="458" y="78" width="136" height="78" rx="10" fill="#16253c" stroke="#2a3d5c" stroke-width="1"/>
+    <circle cx="474" cy="96" r="5" fill="#41d18a"/>
+    <rect x="486" y="92" width="70" height="8" rx="4" fill="#3d577d"/>
+    <circle cx="474" cy="116" r="5" fill="#41d18a"/>
+    <rect x="486" y="112" width="90" height="8" rx="4" fill="#3d577d"/>
+    <circle cx="474" cy="136" r="5" fill="#41d18a"/>
+    <rect x="486" y="132" width="58" height="8" rx="4" fill="#3d577d"/>
+    <rect x="306" y="168" width="288" height="36" rx="10" fill="#16253c" stroke="#2a3d5c" stroke-width="1"/>
+    <rect x="318" y="180" width="42" height="10" rx="5" fill="#3d577d"/>
+    <rect x="368" y="180" width="86" height="10" rx="5" fill="#2f6fe4"/>
+    <rect x="462" y="180" width="122" height="10" rx="5" fill="#3d577d"/>
+    <rect x="306" y="214" width="288" height="16" rx="8" fill="#0f1a2b" stroke="#243a5e" stroke-width="1"/>
+    <rect x="312" y="218" width="96" height="8" rx="4" fill="#3d577d"/>
+  </g>
+  <g>
+    <path d="M0 196 C120 176 200 232 320 214 L320 300 L0 300 Z" fill="url(#water)"/>
+    <path d="M96 224 C126 194 196 194 220 222 C196 250 126 252 96 224 Z" fill="url(#fish)"/>
+    <path d="M220 222 L252 202 L248 222 L252 242 Z" fill="#f2703f"/>
+    <path d="M150 200 C156 186 176 186 180 200" fill="none" stroke="#ffcf9a" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="192" cy="216" r="6" fill="#1b1f2a"/>
+    <circle cx="194" cy="214" r="2" fill="#ffffff"/>
+    <g fill="#8fd3ff" opacity="0.9">
+      <circle cx="252" cy="150" r="5"/>
+      <circle cx="272" cy="132" r="3.5"/>
+      <circle cx="286" cy="158" r="2.5"/>
+    </g>
+    <g fill="#ffd166" opacity="0.85">
+      <circle cx="70" cy="150" r="3"/>
+      <circle cx="52" cy="132" r="2"/>
+      <circle cx="86" cy="128" r="2"/>
+    </g>
+  </g>
+</svg>
