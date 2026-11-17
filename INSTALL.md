@@ -9,11 +9,11 @@
 ## 方式 B：GitHub 安装（无需市场）
 
 ```sh
-# 固定 commit（推荐，稳定）
-dsh plugin --profile <profile> add git+https://github.com/<OWNER>/my-fish.git#<commit>
+# 从 GitHub 安装（main 最新）
+dsh plugin --profile <profile> add git+https://github.com/linkl-ike/my-fish.git
 
 # 或 GitHub Release 的预构建 tarball
-dsh plugin --profile <profile> add https://github.com/<OWNER>/my-fish/releases/download/v1.0.0/my-fish-1.0.0.tgz
+dsh plugin --profile <profile> add https://github.com/linkl-ike/my-fish/releases/download/v1.0.0/my-fish-1.0.0.tgz
 ```
 
 装完重启 DSH（或按 dsh 提示刷新）。
@@ -37,6 +37,14 @@ dsh plugin --profile <profile> add https://github.com/<OWNER>/my-fish/releases/d
    ```
 
 4. 重启 DSH。
+
+## 方式 A2：DSH 发现页索引源
+
+**插件 → 发现 → 索引源** 添加：
+
+```
+https://linkl-ike.github.io/my-fish/market/index.json
+```
 
 ## 验证
 

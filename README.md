@@ -11,14 +11,24 @@
 ### 从 GitHub 直接安装（DSH CLI）
 
 ```sh
-dsh plugin --profile <你的 profile> add git+https://github.com/<OWNER>/my-fish.git#<commit>
+dsh plugin --profile <你的 profile> add git+https://github.com/linkl-ike/my-fish.git#<commit>
 ```
 
 也可以下载 Release 里的 `my-fish-1.0.0.tgz`：
 
 ```sh
-dsh plugin --profile <你的 profile> add https://github.com/<OWNER>/my-fish/releases/download/v1.0.0/my-fish-1.0.0.tgz
+dsh plugin --profile <你的 profile> add https://github.com/linkl-ike/my-fish/releases/download/v1.0.0/my-fish-1.0.0.tgz
 ```
+
+### 在 DSH「发现」里添加索引源
+
+**插件 → 发现 → 索引源（Index sources）→ 添加**：
+
+```
+https://linkl-ike.github.io/my-fish/market/index.json
+```
+
+（需要先启用实验性插件「自定义插件索引 / Custom plugin indexes」。）
 
 ### 本地目录安装
 
