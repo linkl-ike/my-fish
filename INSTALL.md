@@ -13,7 +13,7 @@
 dsh plugin --profile <profile> add git+https://github.com/linkl-ike/my-fish.git
 
 # 或 GitHub Release 的预构建 tarball
-dsh plugin --profile <profile> add https://github.com/linkl-ike/my-fish/releases/download/v1.0.0/my-fish-1.0.0.tgz
+dsh plugin --profile <profile> add https://github.com/linkl-ike/my-fish/releases/download/v1.0.2/my-fish-1.0.2.tgz
 ```
 
 装完重启 DSH（或按 dsh 提示刷新）。
@@ -50,7 +50,7 @@ https://linkl-ike.github.io/my-fish/market/index.json
 
 左侧出现 **my fish** → 打开：
 - 总览：引擎 = 内置（fish-core），记忆 N 条
-- 服务 / 归档 → 版本信息：my fish 版本 **1.0.0**、鱼引擎版本 **0.18.5-local.2**
+- 服务 / 归档 → 版本信息：my fish 版本 **1.0.2**、鱼引擎版本 **0.18.5-local.2**
 - 日志 / 备份 → 一键自检：全绿
 
 ## 依赖的外部服务（可选）

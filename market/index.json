@@ -87,11 +87,11 @@
         }
       },
       "dist-tags": {
-        "latest": "1.0.0"
+        "latest": "1.0.2"
       },
       "versions": [
         {
-          "version": "1.0.0",
+          "version": "1.0.2",
           "publishTimestamp": 1794938179,
           "source": {
             "type": "git",

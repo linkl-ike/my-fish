@@ -20,7 +20,7 @@ DSH 没有官方中心市场：**插件市场（dshmarket）的目录来自社�
 cd my-fish
 git init -b main
 git add -A
-git commit -m "my fish 1.0.0"
+git commit -m "my fish 1.0.2"
 git remote add origin https://github.com/<OWNER>/my-fish.git
 git push -u origin main
 ```
@@ -38,10 +38,10 @@ git push -u origin main
 dsh plugin --profile <profile> add git+https://github.com/<OWNER>/my-fish.git#<commit>
 ```
 
-或把 `npm pack` 生成的 `my-fish-1.0.0.tgz` 上传到 GitHub Release，然后：
+或把 `npm pack` 生成的 `my-fish-1.0.2.tgz` 上传到 GitHub Release，然后：
 
 ```sh
-dsh plugin --profile <profile> add https://github.com/<OWNER>/my-fish/releases/download/v1.0.0/my-fish-1.0.0.tgz
+dsh plugin --profile <profile> add https://github.com/<OWNER>/my-fish/releases/download/v1.0.2/my-fish-1.0.2.tgz
 ```
 
 ## 3. （可选）发布到 npm
@@ -98,4 +98,4 @@ https://<OWNER>.github.io/my-fish/market/index.json
 - [ ] `package.json` 的 `engines.dsh` 与实测 DSH 版本兼容
 - [ ] 如需商店截图：用你自己的环境截图后放到 `assets/` 并在 `screenshots.json` 声明（仓库默认不含截图，避免带出个人数据）
 - [ ] `docs/DETAIL.md` 是单图详情页，图片在 `docs/preview.svg`
-- [ ] 标签 `v1.0.0` 推动后 GitHub Actions 自动生成 `my-fish-1.0.0.tgz` 并附加到 Release（`.github/workflows/release.yml`）
+- [ ] 标签 `v1.0.2` 推动后 GitHub Actions 自动生成 `my-fish-1.0.2.tgz` 并附加到 Release（`.github/workflows/release.yml`）

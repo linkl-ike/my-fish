@@ -19,12 +19,12 @@ DSH 的"插件市场"其实有两层：
 
 不需要 GitHub，Gitee 网页和 git 都通。
 
-1. 解压 `my-fish-1.0.0-github-repo.zip`，在目录里：
+1. 解压 `my-fish-1.0.2-github-repo.zip`，在目录里：
 
    ```bash
    git init -b main
    git add -A
-   git commit -m "my fish 1.0.0"
+   git commit -m "my fish 1.0.2"
    ```
 
 2. 打开 https://gitee.com 新建仓库 `my-fish`（公开），然后：
@@ -80,13 +80,13 @@ npm registry 通，unpkg 也通；npm 网站 `npmjs.com` 用浏览器一般能�
 3. 用户添加索引源：
 
    ```
-   https://unpkg.com/my-fish@1.0.0/market/index.json
+   https://unpkg.com/my-fish@1.0.2/market/index.json
    ```
 
 4. 直接安装：
 
    ```bash
-   dsh plugin --profile <profile> add my-fish@1.0.0
+   dsh plugin --profile <profile> add my-fish@1.0.2
    ```
 
 > 说明：`package.json` 的 `files` 已包含 `market`，发布后 unpkg 能直接取到索引和图标。

@@ -13,6 +13,7 @@ import { existsSync, readFileSync, readdirSync, statSync, writeFileSync, rmSync 
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import net from 'node:net';
+import https from 'node:https';
 import { execFile, spawn } from 'node:child_process';
 
 export const inject = ['webServer'];
@@ -45,6 +46,166 @@ function readOwnVersion() {
 }
 function readEngineVersion() {
   return readJsonVersion(new URL('./fish/package.json', import.meta.url));
+}
+
+const UPDATE_TTL = 10 * 60 * 1000;
+let UPDATE_CACHE = { at: 0, data: null };
+
+function versionTuple(v) {
+  const m = String(v ?? '').trim().match(/^v?(\d+)\.(\d+)\.(\d+)/);
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+}
+
+function compareVersions(a, b) {
+  const x = versionTuple(a);
+  const y = versionTuple(b);
+  if (x === null || y === null) return 0;
+  for (let i = 0; i < 3; i += 1) {
+    if (x[i] !== y[i]) return x[i] > y[i] ? 1 : -1;
+  }
+  return 0;
+}
+
+function isCertError(error) {
+  const message = String(error?.code || error?.message || error);
+  return /CERT|SELF_SIGNED|UNABLE_TO_VERIFY|ERR_TLS|DEPTH_ZERO|ISSUER|wrong version number/i.test(message);
+}
+
+/** 发一个 HTTPS 请求，返回 { status, headers, body }（不抛 4xx/5xx，便于降级）。 */
+function httpsFetchRaw(url, { insecure = false, timeoutMs = 6000, method = 'GET' } = {}) {
+  return new Promise((resolve, reject) => {
+    const req = https.request(url, {
+      method,
+      headers: { 'user-agent': 'my-fish-update-check', accept: 'application/vnd.github+json, text/html, application/atom+xml' },
+      timeout: timeoutMs,
+      rejectUnauthorized: !insecure,
+    }, (res) => {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => { if (body.length < 400000) body += chunk; });
+      res.on('end', () => resolve({ status: Number(res.statusCode ?? 0), headers: res.headers, body }));
+    });
+    req.on('timeout', () => req.destroy(new Error('timeout')));
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+/** 先正常校验证书；证书类错误时降级重试一次（本地反代会替换 GitHub 证书）。 */
+async function httpsFetch(url, options = {}) {
+  try {
+    return await httpsFetchRaw(url, options);
+  } catch (error) {
+    if (isCertError(error)) return httpsFetchRaw(url, { ...options, insecure: true });
+    throw error;
+  }
+}
+
+function tagFromLocation(location) {
+  const m = String(location ?? '').match(/\/releases\/tag\/(v\d+\.\d+\.\d+(?:[-+][\w.-]+)?)/i);
+  return m ? m[1] : '';
+}
+
+function tagFromAtom(body) {
+  const entries = String(body ?? '').match(/<entry>[\s\S]*?<\/entry>/g) || [];
+  const first = entries[0] ?? '';
+  const m = first.match(/\/releases\/tag\/(v\d+\.\d+\.\d+(?:[-+][\w.-]+)?)/i);
+  return m ? m[1] : '';
+}
+
+/**
+ * 更新检查：读 GitHub 最新 Release，和本插件 package.json 版本比较。
+ *
+ * 顺序：GitHub API → releases/latest 的 302 Location → releases.atom。
+ * 未登录的 GitHub API 有 IP 级限流（403），所以必须带后两条兜底。
+ * 结果缓存 10 分钟；点「检查更新」或刷新页面才重新请求。
+ */
+async function checkUpdate(force = false) {
+  const current = readOwnVersion();
+  if (!force && UPDATE_CACHE.data !== null && Date.now() - UPDATE_CACHE.at < UPDATE_TTL) {
+    return { ...UPDATE_CACHE.data, cached: true };
+  }
+
+  const repo = 'https://github.com/linkl-ike/my-fish';
+  let latest = '';
+  let tag = '';
+  let link = '';
+  let notes = '';
+  let publishedAt = null;
+  let source = '';
+  const errors = [];
+
+  // 1) GitHub API
+  try {
+    const res = await httpsFetch(`https://api.github.com/repos/linkl-ike/my-fish/releases/latest`);
+    if (res.status === 200) {
+      const release = JSON.parse(res.body);
+      tag = String(release.tag_name ?? '');
+      latest = tag.replace(/^v/i, '');
+      link = String(release.html_url ?? '');
+      notes = String(release.body ?? '').slice(0, 1200);
+      publishedAt = release.published_at ?? null;
+      source = 'github-api';
+    } else {
+      errors.push(`api HTTP ${res.status}`);
+    }
+  } catch (error) {
+    errors.push(`api ${String(error?.code || error?.message || error)}`);
+  }
+
+  // 2) releases/latest 的 302 跳转（没有 API 限流）
+  if (latest === '') {
+    try {
+      const res = await httpsFetch(`${repo}/releases/latest`, { timeoutMs: 8000, method: 'GET' });
+      const loc = res.headers?.location ?? '';
+      const found = tagFromLocation(loc) || tagFromLocation(res.body);
+      if (found !== '') {
+        tag = found;
+        latest = tag.replace(/^v/i, '');
+        link = `${repo}/releases/tag/${tag}`;
+        source = 'github-redirect';
+      } else {
+        errors.push(`redirect HTTP ${res.status}`);
+      }
+    } catch (error) {
+      errors.push(`redirect ${String(error?.code || error?.message || error)}`);
+    }
+  }
+
+  // 3) releases.atom
+  if (latest === '') {
+    try {
+      const res = await httpsFetch(`${repo}/releases.atom`, { timeoutMs: 8000 });
+      const found = tagFromAtom(res.body);
+      if (res.status === 200 && found !== '') {
+        tag = found;
+        latest = tag.replace(/^v/i, '');
+        link = `${repo}/releases/tag/${tag}`;
+        source = 'github-atom';
+      } else {
+        errors.push(`atom HTTP ${res.status}`);
+      }
+    } catch (error) {
+      errors.push(`atom ${String(error?.code || error?.message || error)}`);
+    }
+  }
+
+  const hasUpdate = latest !== '' && compareVersions(latest, current) > 0;
+  const data = {
+    ok: true,
+    current,
+    latest,
+    tag,
+    hasUpdate,
+    url: link,
+    notes,
+    publishedAt,
+    checkedAt: Date.now(),
+    source,
+    error: latest === '' ? errors.join('；').slice(0, 240) : '',
+  };
+  UPDATE_CACHE = { at: Date.now(), data };
+  return data;
 }
 
 function dshHome() {
@@ -582,6 +743,12 @@ export function apply(ctx, config = {}) {
 
       if (req.method === 'GET' && (path === '/' || path === '/state')) {
         sendJson(res, 200, await collect());
+        return;
+      }
+
+      if (req.method === 'GET' && path === '/update') {
+        const force = url.searchParams.get('refresh') === '1';
+        sendJson(res, 200, await checkUpdate(force));
         return;
       }
 

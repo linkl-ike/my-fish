@@ -263,6 +263,7 @@ window.__ModuleLoader__.load({
         if (dg1 && dg1.ok !== false) setDiagS(dg1);
         if (bk1 && bk1.ok !== false) setBackupS(bk1);
         if (up1 && up1.ok !== false) setUpdateS(up1);
+        void getJson(`${API}/update`).then((u) => { if (u && u.ok !== false) setUpdateInfo(u); }).catch(() => {});
         if (rt1 && rt1.ok !== false) setRetrievalS(rt1);
         if (ac1 && ac1.ok !== false) setActivityS(ac1);
         if (wk1 && wk1.ok !== false) setWeeklyS(wk1);
@@ -303,6 +304,27 @@ window.__ModuleLoader__.load({
       const [diagS, setDiagS] = React.useState(null);
       const [backupS, setBackupS] = React.useState(null);
       const [updateS, setUpdateS] = React.useState(null);
+      const [updateInfo, setUpdateInfo] = React.useState(null);
+      const [updateBusy, setUpdateBusy] = React.useState(false);
+      const runUpdateCheck = React.useCallback(async () => {
+        setUpdateBusy(true);
+        try {
+          const r = await getJson(`${API}/update?refresh=1`);
+          if (r && r.ok !== false) {
+            setUpdateInfo(r);
+            if (r.error) notify(`检查失败：${r.error}`);
+            else if (r.hasUpdate) notify(`有更新：${r.latest}（当前 ${r.current}）`);
+            else notify(`已是最新（${r.current}）`);
+          } else {
+            notify(`检查失败：${(r && r.error) || "未知错误"}`);
+          }
+        } finally {
+          setUpdateBusy(false);
+        }
+      }, []);
+
+
+
       const [archiveKind, setArchiveKind] = React.useState("cards");
       const [archiveQ, setArchiveQ] = React.useState("");
       const [archiveS, setArchiveS] = React.useState(null);
@@ -1784,11 +1806,24 @@ window.__ModuleLoader__.load({
               h("button", { type: "button", style: styles.btn(true), disabled: busy, onClick: () => doService("start-voice-shim", "启动语音桥") }, "启动语音桥"),
               h("button", { type: "button", style: styles.btn(false), disabled: busy, onClick: () => doService(svc.watchdogPaused ? "watchdog-resume" : "watchdog-pause", "切换看门狗") }, svc.watchdogPaused ? "恢复看门狗" : "暂停看门狗"))),
           h(Card, { title: "版本信息" },
-            h(Row, { label: "my fish 版本" }, h("span", null, host?.version || "—")),
-            h(Row, { label: "鱼引擎版本" }, h("span", null, host?.engineVersion || "—")),
-            h(Row, { label: "面板接口" }, h("span", { style: styles.mono }, "/api/plugins/my-fish")),
-            h(Row, { label: "数据目录" }, h("span", { style: styles.mono }, host?.paths?.fishHome || "—")),
-            h("div", { style: styles.hint }, "版本号来自插件 package.json；发布到 GitHub / 插件市场后按 tag 升级。")),
+                      h(Row, { label: "my fish 版本" }, h("span", null, host?.version || "—")),
+                      h(Row, { label: "鱼引擎版本" }, h("span", null, host?.engineVersion || "—")),
+                      h(Row, { label: "最新版本" }, h("span", null, updateInfo ? (updateInfo.latest || "—") : "—（点「检查更新」）")),
+                      h(Row, { label: "更新状态" }, h("span", null, updateInfo
+                        ? updateInfo.error
+                          ? `检查失败：${String(updateInfo.error).slice(0, 80)}`
+                          : updateInfo.hasUpdate
+                            ? `有更新：${updateInfo.latest}`
+                            : "已是最新"
+                        : "未检查")),
+                      h(Row, { label: "面板接口" }, h("span", { style: styles.mono }, "/api/plugins/my-fish")),
+                      h(Row, { label: "数据目录" }, h("span", { style: styles.mono }, host?.paths?.fishHome || "—")),
+                      h("div", { style: { display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center" } },
+                        updateInfo && updateInfo.hasUpdate && updateInfo.url
+                          ? h("a", { href: updateInfo.url, target: "_blank", rel: "noreferrer", style: { ...styles.btn(false), textDecoration: "none" } }, "打开发布页")
+                          : null,
+                        h("button", { type: "button", style: styles.btn(true), disabled: updateBusy, onClick: runUpdateCheck }, updateBusy ? "检查中…" : "检查更新")),
+                      h("div", { style: styles.hint }, "版本号来自插件 package.json；更新来自 GitHub Releases（检查结果缓存 10 分钟）。")),
           h(Card, { title: "SurfCore 归档" },
             h(Row, { label: "记忆卡" }, h("span", null, sc.archive ? `${sc.archive.cardRecords} 条（QQ ${sc.archive.cardByScope?.qq ?? 0} / B站 ${sc.archive.cardByScope?.bili ?? 0}）` : "—")),
             h(Row, { label: "B站记忆库" }, h("span", null, sc.archive ? `${sc.archive.biliMemoryEntries} 条` : "—")),
