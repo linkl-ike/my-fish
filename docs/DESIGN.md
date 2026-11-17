@@ -158,7 +158,7 @@ my-fish (client client.js)
 - 用户可见名统一改为 **my fish**：侧边栏入口、面板标题、设置页 section、插件页卡片标题（locale en/zh 的 meta.title）。
 - 内部标识不变：包名仍是 `my-fish`，插件 id/slot id、HTTP 路由（`/api/plugins/my-fish/*`、`/api/plugins/fish-soul/*`）、数据目录也都保持不变（改名只影响展示，不影响兼容性）。
 
-### 全面改名为 my fish（v1.0.2）
+### 全面改名为 my fish（v1.0.3）
 
 - 插件目录：`C:\Users\<用户>\dsh-plugins\my-fish`；npm 包名 `my-fish`；bundle 行 id/name `my-fish`；profile 依赖与 bundles 同步。
 - Host API 前缀改为 `/api/plugins/my-fish/*`；客户端 PLUGIN_ID、slot id 改为 `my-fish`。

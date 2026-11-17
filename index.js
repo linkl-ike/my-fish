@@ -513,8 +513,28 @@ function spawnDetached(file, args) {
   }
 }
 
+function snowlumaWebuiInfo() {
+  const runtime = readJson(join(PATHS.snowlumaDir, 'config', 'runtime.json')) ?? {};
+  const port = Number(runtime.webuiPort) > 0 ? Number(runtime.webuiPort) : 5099;
+  return { port, url: `http://127.0.0.1:${port}/` };
+}
+
 const SERVICE_ACTIONS = {
   'start-snowluma': () => spawnDetached('wscript.exe', [join(PATHS.snowlumaDir, 'start-hidden.vbs')]),
+  'open-snowluma': async () => {
+    const info = snowlumaWebuiInfo();
+    if (!existsSync(PATHS.snowlumaDir)) return { ok: false, error: '找不到 SnowLuma 目录：' + PATHS.snowlumaDir };
+    const reachable = await portOpen(info.port, 600);
+    if (!reachable) {
+      spawnDetached('wscript.exe', [join(PATHS.snowlumaDir, 'start-hidden.vbs')]);
+      for (let i = 0; i < 24; i += 1) {
+        await new Promise((r) => setTimeout(r, 500));
+        if (await portOpen(info.port, 300)) break;
+      }
+    }
+    spawnDetached('cmd.exe', ['/c', 'start', '', info.url]);
+    return { ok: true, url: info.url, started: !reachable };
+  },
   'restart-snowluma': async () => {
     const kill = await execFileP('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
       "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $_.CommandLine -like '*SnowLuma*index.mjs*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"]);

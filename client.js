@@ -490,6 +490,60 @@ window.__ModuleLoader__.load({
           return r;
         };
         return h("div", { style: styles.grid },
+        h(Card, { title: "登录 / 连接" },
+          h("div", { style: styles.hint }, "QQ 的扫码登录在 SnowLuma 网页里（面板只能帮你启动/打开它）；B站 直接在这里扫码；抖音 会弹出专用浏览器窗口，在里面登录。登录一次后会记住。"),
+          h(Row, { label: "QQ" }, h("span", null,
+            channels.qq?.connected === true
+              ? `已连接${channels.qq?.nickname ? ` · ${channels.qq.nickname}` : ""}${channels.qq?.selfId ? `（${channels.qq.selfId}）` : ""}`
+              : channels.qq?.enabled === true
+                ? (channels.qq?.lastError ? `已启用但没连上：${String(channels.qq.lastError).slice(0, 80)}` : "已启用，等待连接")
+                : "未启用")),
+          h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end", marginTop: 6 } },
+            h("button", { type: "button", style: styles.btn(true), disabled: busy, onClick: async () => {
+              setBusy(true);
+              const r = await postJson(`${API}/service`, { action: "open-snowluma" });
+              setBusy(false);
+              if (r && r.ok) notify(`已打开 SnowLuma 登录页：${r.url || ""}（在网页里扫码登录 QQ）`);
+              else notify(`打开 SnowLuma 失败：${(r && r.error) || ""}`);
+            } }, "打开 SnowLuma 扫码登录"),
+            h("button", { type: "button", style: styles.btn(false), disabled: busy, onClick: async () => {
+              setBusy(true);
+              const r = await postJson(`${API}/service`, { action: "start-snowluma" });
+              setBusy(false);
+              notify(r && r.ok ? "已启动 SnowLuma，稍等几秒再点「打开 SnowLuma 扫码登录」" : `启动 SnowLuma 失败：${(r && r.error) || ""}`);
+            } }, "启动 SnowLuma")),
+          h(Row, { label: "B站" }, h("span", null,
+            channels.bili?.loggedIn === true
+              ? `已登录${channels.bili?.uname ? ` · ${channels.bili.uname}` : ""}`
+              : channels.bili?.enabled === true ? "通道开，未登录" : "未启用")),
+          h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end", marginTop: 6 } },
+            h("button", { type: "button", style: styles.btn(true), disabled: busy, onClick: async () => {
+              const r = await act("/bili/qr/start", {}, "", true);
+              if (r && r.ok && r.svg) { setBiliQr(r.svg); setBiliPoll(null); notify(`B站二维码已生成，${r.expiresInSec || 120} 秒内用 B站 App 扫码`); }
+              else notify(`生成 B站 二维码失败：${(r && r.error) || ""}`);
+            } }, "B站扫码登录"),
+            h("button", { type: "button", style: styles.btn(false), disabled: busy, onClick: async () => {
+              const r = await act("/bili/qr/poll", {}, "", true);
+              if (r && r.ok) { setBiliPoll(r); notify(`扫码状态：${r.status}${r.message ? ` · ${r.message}` : ""}`); }
+              else notify(`查询失败：${(r && r.error) || ""}`);
+            } }, "刷新 B站 扫码状态")),
+          biliQr ? h("div", { style: { marginTop: 8, background: "#fff", padding: 8, borderRadius: 8, display: "inline-block" }, dangerouslySetInnerHTML: { __html: biliQr } }) : null,
+          biliPoll ? h("div", { style: styles.hint }, `B站扫码状态：${biliPoll.status || ""}${biliPoll.message ? ` · ${biliPoll.message}` : ""}`) : null,
+          h(Row, { label: "抖音" }, h("span", null,
+            channels.douyin?.host?.loggedIn === true
+              ? `已登录${channels.douyin?.host?.state === "paused" ? "（暂停）" : ""}${channels.douyin?.channel?.running === true ? " · 收信在跑" : ""}`
+              : channels.douyin?.enabled === true ? "通道开，未登录（点下面按钮去登录）" : "未启用")),
+          h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end", marginTop: 6 } },
+            h("button", { type: "button", style: styles.btn(true), disabled: busy, onClick: async () => {
+              setBusy(true);
+              const a = await act("/douyin/browser/start", {}, "", true);
+              const b = await act("/douyin/window", { show: true }, "", true);
+              setBusy(false);
+              if (a && a.ok) notify("抖音专用浏览器已启动；在窗口里扫码/登录抖音");
+              else notify(`启动抖音浏览器失败：${(a && a.error) || (b && b.error) || ""}`);
+            } }, "打开抖音登录窗口"),
+            h("button", { type: "button", style: styles.btn(false), disabled: busy, onClick: () => act("/douyin/window", { show: true }, "已显示抖音窗口") }, "显示抖音窗口")),
+          h("div", { style: styles.hint }, "登录完记得在上面把对应通道的「启用」打开；QQ 需要本机装 SnowLuma（OneBot 网关）。")),
         h(Card, { title: "QQ" },
           h(Row, { label: "启用" }, h(Switch, { checked: qq.enabled === true, onChange: (v) => saveChannel("qq", { enabled: v, wsUrl: qq.wsUrl || "ws://127.0.0.1:3001" }, "QQ") })),
           h(Row, { label: "主人 QQ" }, h(Text, { value: qq.masterQqUin || "", onChange: (v) => setChannels({ ...channels, qq: { ...qq, masterQqUin: v } }) })),
