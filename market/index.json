@@ -92,11 +92,11 @@
       "versions": [
         {
           "version": "1.0.2",
-          "publishTimestamp": 1794938179,
+          "publishTimestamp": 1794939132,
           "source": {
             "type": "git",
             "url": "https://github.com/linkl-ike/my-fish",
-            "commit": "a9053f6e6ce2bf4fea79fabc3f68b1d9e8cdc9fc"
+            "commit": "fa89a6bc45a6f8cd46cce8c644b321d938f212b8"
           },
           "engines": {
             "dsh": ">=0.2.1"
