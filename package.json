@@ -54,12 +54,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/OWNER/my-fish"
+    "url": "https://github.com/linkl-ike/my-fish"
   },
   "author": "my fish contributors",
-  "homepage": "https://github.com/OWNER/my-fish#readme",
+  "homepage": "https://github.com/linkl-ike/my-fish#readme",
   "bugs": {
-    "url": "https://github.com/OWNER/my-fish/issues"
+    "url": "https://github.com/linkl-ike/my-fish/issues"
   },
   "engines": {
     "dsh": ">=0.2.1",
