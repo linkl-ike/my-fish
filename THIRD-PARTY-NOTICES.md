@@ -3,7 +3,7 @@
 ## fish-core（内嵌在 fish/）
 
 - 名称：dsh-fish-soul（本地维护版 fish-core）
-- 版本：0.18.5-local.2
+- 版本：0.18.5-local.3
 - 来源：https://github.com/Britneycode/dsh-fish-soul
 - 许可：MIT
 - 说明：本插件把 fish-core 的源码内置在 `fish/` 目录中作为子插件加载；其数据

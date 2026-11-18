@@ -698,7 +698,10 @@ async function readDMDom({ browser, limit = 30, uname = '', scrollBack = 0 }) {
         media.width = dim.w
         media.height = dim.h
       } else if (type === 'share') {
-        media.title = textOf(box, 'MessageItemShareAwemeauthorName') || text
+        // 分享卡 DOM 里只有作者名（不是正文）：单独放到 author，标题留空。
+        // 上层 normalizeDouyinMessage 会把分享卡明确标成【分享视频】，不把作者名当用户的话。
+        media.author = textOf(box, 'MessageItemShareAwemeauthorName') || text
+        media.title = ''
       }
 
       // 文本类没正文 → 忽略；**媒体类照样要**

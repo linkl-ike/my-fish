@@ -148,7 +148,7 @@ my-fish (client client.js)
 
 - 运行态插件总数 234，`include:fish-soul` 已消失；只剩 `include:my-fish` 一个养鱼插件。
 - `GET /api/plugins/my-fish/state` → `engine: {embedded:true,error:""}`；总览「引擎」= 内置（fish-core，随本插件启动）。
-- 鱼自检 7/7：版本 v0.18.5-local.2 · 通道 QQ 已连 / B站 已登录 / 抖音 在跑 · 记忆 216 条。
+- 鱼自检 7/7：版本 v0.18.5-local.3 · 通道 QQ 已连 / B站 已登录 / 抖音 在跑 · 记忆 216 条。
 - verify-live 11 PASS；API 全量回归 37 PASS；17 个标签页逐页打开无报错。
 - 侧边栏「鱼」入口已随独立插件一起消失，只剩「融合」。
 - 已知小项：Host `/state` 的 `fish.version` 仍为空（旧逻辑只从 profile node_modules 找 fish 包）；面板已用 `/update/state` 的 `current` 兜底，显示正常，下次重启无需处理。
@@ -158,7 +158,7 @@ my-fish (client client.js)
 - 用户可见名统一改为 **my fish**：侧边栏入口、面板标题、设置页 section、插件页卡片标题（locale en/zh 的 meta.title）。
 - 内部标识不变：包名仍是 `my-fish`，插件 id/slot id、HTTP 路由（`/api/plugins/my-fish/*`、`/api/plugins/fish-soul/*`）、数据目录也都保持不变（改名只影响展示，不影响兼容性）。
 
-### 全面改名为 my fish（v1.0.3）
+### 全面改名为 my fish（v1.0.4）
 
 - 插件目录：`C:\Users\<用户>\dsh-plugins\my-fish`；npm 包名 `my-fish`；bundle 行 id/name `my-fish`；profile 依赖与 bundles 同步。
 - Host API 前缀改为 `/api/plugins/my-fish/*`；客户端 PLUGIN_ID、slot id 改为 `my-fish`。

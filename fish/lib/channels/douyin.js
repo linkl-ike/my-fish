@@ -342,7 +342,21 @@ export function normalizeDouyinMessage(m, { name, timeMs, messageId, group = fal
 	const images = [];
 	const links = [];
 	let text = String(m.text ?? '').trim();
-	if (m.type === 'image') {
+	// 🔴 分享卡片：DOM 路只能拿到作者名，推送帧里才有标题（content_title）。
+	//    以前直接把作者名当正文 → 鱼会把「小满」当成用户说的话，进而记成
+	//    「你反复念小满」的假记忆（2026-11-18 真机）。分享卡必须显式标出来。
+	const isShareCard = m.type === 'share' || m.isShare === true || Boolean(m.shareAweme);
+	if (isShareCard) {
+		const rawText = String(m.text ?? '').trim();
+		const shareTitle = String(m.raw?.content_title ?? m.media?.title ?? '').trim();
+		const shareAuthor = String(m.raw?.content_name ?? m.media?.author ?? '').trim();
+		if (shareTitle !== '') {
+			text = `【分享视频】${shareTitle}${shareAuthor !== '' && shareAuthor !== shareTitle ? `（作者：${shareAuthor}）` : ''}`;
+		} else {
+			text = `【分享视频】（作者：${shareAuthor || rawText || '未知'}）`;
+		}
+		if (m.shareAweme) links.push(`https://www.douyin.com/video/${m.shareAweme}`);
+	} else if (m.type === 'image') {
 		const src = String(media.data || media.src || '');
 		// 🔴 抖音的「图片表情」（那个柯基狗那种）在协议里就是 type:'image'，
 		//    和普通照片分不开（decodeMessageNode 解出的 media 只有 {uri,width,height}，
@@ -371,7 +385,7 @@ export function normalizeDouyinMessage(m, { name, timeMs, messageId, group = fal
 	} else {
 		text = text.replace(/【/g, '〔').replace(/】/g, '〕');
 	}
-	if (m.shareAweme) {
+	if (m.shareAweme && !isShareCard) {
 		links.push(`https://www.douyin.com/video/${m.shareAweme}`);
 		if (!/分享/.test(text)) text = `【分享视频】${text}`;
 	}

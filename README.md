@@ -30,10 +30,10 @@ powershell -ExecutionPolicy Bypass -File tools/check-env.ps1
 dsh plugin --profile <你的 profile> add git+https://github.com/linkl-ike/my-fish.git#<commit>
 ```
 
-也可以下载 Release 里的 `my-fish-1.0.3.tgz`：
+也可以下载 Release 里的 `my-fish-1.0.4.tgz`：
 
 ```sh
-dsh plugin --profile <你的 profile> add https://github.com/linkl-ike/my-fish/releases/download/v1.0.3/my-fish-1.0.3.tgz
+dsh plugin --profile <你的 profile> add https://github.com/linkl-ike/my-fish/releases/download/v1.0.4/my-fish-1.0.4.tgz
 ```
 
 ### 在 DSH「发现」里添加索引源
@@ -91,8 +91,8 @@ INSTALL.md / PUBLISH-GITHUB.md / LICENSE / THIRD-PARTY-NOTICES.md
 
 ## 版本
 
-- 插件：**1.0.3**
-- 内嵌引擎：fish-core 0.18.5-local.2
+- 插件：**1.0.4**
+- 内嵌引擎：fish-core 0.18.5-local.3
 
 ## 发布到插件市场
 
