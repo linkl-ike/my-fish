@@ -608,6 +608,20 @@ window.__ModuleLoader__.load({
               const r = await postJson(`${FISH}/douyin/inbox-dismiss-all`, {});
               notify(r && r.ok ? `已忽略 ${r.dismissed ?? 0} 条未确认` : `失败：${(r && r.error) || ""}`);
             } }, "忽略未确认私信"),
+            h("button", { type: "button", style: styles.btn(true), disabled: busy || ((douyin.channel?.inbox?.review || []).length === 0), onClick: async () => {
+              const items = douyin.channel?.inbox?.review || [];
+              if (items.length === 0) { notify("没有未确认的私信"); return; }
+              setBusy(true);
+              let ok = 0;
+              let firstErr = "";
+              for (const it of items) {
+                const r = await postJson(`${FISH}/douyin/inbox-resolve`, { id: it.id, action: "retry" });
+                if (r && r.ok) ok += 1; else if (!firstErr) firstErr = (r && r.error) || "失败";
+              }
+              setBusy(false);
+              notify(ok > 0 ? `已把 ${ok} 条放进重试队列，下一轮轮询（约 20 秒）会重新回复${firstErr ? `；${items.length - ok} 条没成功：${firstErr}` : ""}` : `重试没成功：${firstErr || "没有未确认私信"}`);
+              if (ok > 0) void load();
+            } }, "重试全部未确认"),
             h("button", { type: "button", style: styles.btn(false), disabled: busy, onClick: async () => {
               const r = await postJson(`${FISH}/douyin/inbox-gap-ack`, {});
               notify(r && r.ok ? "遗漏提示已标为已知悉" : `失败：${(r && r.error) || ""}`);
@@ -617,6 +631,30 @@ window.__ModuleLoader__.load({
               if (r && r.ok) { setDqUin(r.candidates || []); notify(`抖音账号候选：${(r.candidates || []).length} 个`); }
               else notify(`查候选失败：${(r && r.error) || ""}`);
             } }, "查抖音账号候选")),
+          (() => {
+            const box = douyin.channel?.inbox || {};
+            const list = Array.isArray(box.review) ? box.review : [];
+            const total = Number(box.unknownTotal ?? list.length);
+            if (list.length === 0) return null;
+            return h("div", { style: { marginTop: 8, borderTop: "1px solid rgba(128,128,128,0.14)", paddingTop: 8 } },
+              h("div", { style: styles.hint }, total > list.length ? `未确认私信 ${total} 条（这里显示前 ${list.length} 条）· 重试 = 重新处理并回复` : `未确认私信 ${list.length} 条 · 重试 = 重新处理并回复`),
+              list.map((it) => h("div", { key: it.id, style: { display: "flex", gap: 8, alignItems: "flex-start", padding: "5px 0", borderTop: "1px solid rgba(128,128,128,0.1)" } },
+                h("div", { style: { flex: "1 1 auto", fontSize: 12, whiteSpace: "pre-wrap", minWidth: 0 } },
+                  `「${String(it.text || "（无文字）").slice(0, 120)}」`,
+                  it.error ? h("span", { style: { opacity: 0.65 } }, ` · ${String(it.error).slice(0, 80)}`) : null),
+                h("button", { type: "button", style: styles.btn(true), disabled: busy, onClick: async () => {
+                  setBusy(true);
+                  const r = await postJson(`${FISH}/douyin/inbox-resolve`, { id: it.id, action: "retry" });
+                  setBusy(false);
+                  notify(r && r.ok ? "已放进重试队列，下一轮轮询会重新回复" : `重试失败：${(r && r.error) || ""}`);
+                  if (r && r.ok) void load();
+                } }, "重试发送"),
+                h("button", { type: "button", style: styles.btn(false), disabled: busy, onClick: async () => {
+                  const r = await postJson(`${FISH}/douyin/inbox-resolve`, { id: it.id, action: "dismiss" });
+                  notify(r && r.ok ? "已忽略这条" : `忽略失败：${(r && r.error) || ""}`);
+                  if (r && r.ok) void load();
+                } }, "忽略"))));
+          })(),
           dqUin && dqUin.length > 0 ? h("div", { style: { marginTop: 8, maxHeight: 160, overflow: "auto" } },
             dqUin.map((c) => h("div", { key: c.name, style: { display: "flex", gap: 8, alignItems: "center", padding: "3px 0", borderTop: "1px solid rgba(128,128,128,0.1)", fontSize: 12 } },
               h("span", { style: { flex: "1 1 auto" } }, `${c.name}${c.uid ? `（${c.uid}）` : ""}`),

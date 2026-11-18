@@ -82,7 +82,6 @@ my-fish (client client.js)
 | 周记素材来源（/memory/weekly/sources） | 仅当有周记时存在，属调试信息 |
 | 麦麦数据库导入（/import/maibot-extras/*） | 小众迁移场景，需要本地库路径 |
 | 抖音浏览器底层点击 / 重扫（/douyin/click、/douyin/browser/rescan） | 坐标级调试操作 |
-| 单条入站消息重试/忽略（/douyin/inbox-resolve 逐条） | 面板提供整体「忽略未确认 / 遗漏已知悉」 |
 
 这些只在排查或一次性迁移时用；融合面板保持日常可操作的边界。
 
@@ -165,9 +164,17 @@ my-fish (client client.js)
 - 鱼的接口前缀仍为 `/api/plugins/fish-soul/*`，数据目录仍为 `~/.dsh/fish-soul/`（内部契约与数据安全考虑，未改）。
 - 验证脚本同步改为 my-fish 路径/接口；改名后运行态验收：引擎 embedded=true、鱼自检 7/7、记忆 216、verify-live 11 PASS、API 37 PASS、17 标签页无报错。
 - 备份与回滚：`C:\Users\<用户>\dsh-backup-rename-20261118-0100\`（含 `回滚.bat`、改名前的插件目录、profile 快照、鱼数据热备份）。
+
 ### 1.0.5 打磨（2026-11-18 深夜）
 
 - Host `/state`：`fish.version` 改为读内嵌引擎版本（之前从 profile 的 node_modules 找已不存在的 `dsh-fish-soul`，恒为空）；`bili.loggedIn` 改为读 `bili-auth.json` 判断（之前硬编码 false）。
 - 检查更新：三条线路（GitHub API / releases 302 / atom）都连不上时，`error` 改为「连不上 GitHub（当前网络受限）：可以开加速器后再试，或到 GitHub Releases 页手动下载。」，技术细节留在新增的 `errors` 数组里。
 - 总览页「服务」卡片新增「抖音收件箱」：显示未确认私信 / 遗漏提示数量，提醒去「通道 → 抖音」处理。
 - 版本 1.0.4 → 1.0.5；README / INSTALL / PREREQUISITES / 发布文档 / market 索引同步。
+
+### 1.0.6 抖音未确认私信「重试发送」（2026-11-18 深夜）
+
+- 「通道 → 抖音」新增未确认私信列表：每条显示原文和失败原因，提供「重试发送」「忽略」；按钮区新增「重试全部未确认」。
+- 实现只动面板：复用鱼已有的 `POST /douyin/inbox-resolve`（`action: retry` 把消息从 unknown 放回 pending，下一轮轮询重新处理并回复）。
+- 诚实告知：重试是「重新处理并重新生成回复」，不是重放旧文本；如果原回复其实已经发出去了，重试会造成重复，列表标题里写明「重试 = 重新处理并回复」。
+- 实测：2 条「回复没发出去（发送失败）」→ 点「重试全部未确认」→ 队列 pending=2 → 约 16 秒后 pending=0，两条都变 done，回复成功发出，未确认计数清零。
