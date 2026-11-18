@@ -24,7 +24,8 @@
     "PUBLISH-GITHUB.md",
     "market",
     "tools",
-    "PUBLISH-ALTERNATIVES.md"
+    "PUBLISH-ALTERNATIVES.md",
+    "PREREQUISITES.md"
   ],
   "dsh": {
     "bundle": {

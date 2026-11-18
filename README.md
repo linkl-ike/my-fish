@@ -6,6 +6,22 @@
 - **面板**：17 个标签页——总览 / 通道 / 语音 / B站·抖音 / 联系 / 记忆 / 人物 / 人格 / 模型·用量 / 表情·黑话 / 检索 / 世界书 / 日志·备份 / 动态·整理 / 存储·存档 / 归档浏览 / 服务·归档
 - **服务/归档** 页里有版本信息：插件版本、鱼引擎版本、面板接口、数据目录
 
+## 前置环境
+
+完整清单见 **[PREREQUISITES.md](PREREQUISITES.md)**，速记：
+
+- 必需：**DeepSeek Harness 桌面版 ≥ 0.2.1**（自带 Node 24，无需另装）、DSH 里已配置可用的聊天模型；
+- **QQ**：需要 **SnowLuma**（OneBot 11 网关）+ QQ 号（面板「通道 → 登录 / 连接」可一键打开 SnowLuma 控制台扫码）；
+- **B站**：无需额外软件，面板内扫码登录；
+- **抖音**：需要 Edge / Chrome，面板一键打开专用登录窗口；
+- 可选：语音桥（TTS/STT）、ffmpeg（视频抽帧）、SurfCore 旧数据归档、GitHub 网络（仅自动更新用）。
+
+一键自检（Windows PowerShell）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/check-env.ps1
+```
+
 ## 安装
 
 ### 从 GitHub 直接安装（DSH CLI）

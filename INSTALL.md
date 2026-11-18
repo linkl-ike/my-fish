@@ -1,3 +1,5 @@
+> **装之前先看：** 完整前置环境见 [PREREQUISITES.md](PREREQUISITES.md)；最少需要 DSH 桌面版 ≥ 0.2.1 + 已配置聊天模型，QQ 另需 SnowLuma，B站/抖音只需要浏览器。
+
 # my fish 安装说明
 
 适用：DeepSeek Harness 桌面版 / `dsh web`（0.2.1+）。
