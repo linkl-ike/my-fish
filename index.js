@@ -48,6 +48,15 @@ function readEngineVersion() {
   return readJsonVersion(new URL('./fish/package.json', import.meta.url));
 }
 
+function readChangelog() {
+  try {
+    const list = JSON.parse(readFileSync(new URL('./changelog.json', import.meta.url), 'utf8'));
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
 const UPDATE_TTL = 10 * 60 * 1000;
 let UPDATE_CACHE = { at: 0, data: null };
 
@@ -470,6 +479,7 @@ async function collect() {
     at: Date.now(),
     version: readOwnVersion(),
     engineVersion: readEngineVersion(),
+    changelog: readChangelog(),
     engine: ENGINE_STATUS,
     fish,
     surfcore,

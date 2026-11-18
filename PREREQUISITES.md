@@ -32,7 +32,7 @@
 | 模型 | DSH 里已配置**可用的聊天模型** | 鱼的对话/整理/日记都走宿主模型；没配模型时面板能开，但不会聊天 |
 | 网络 | B站：`bilibili.com`；抖音：`douyin.com`；可选 GitHub | 国内网络直连 GitHub 通常需要代理或 GitHub 加速工具（只影响自动更新和从 GitHub 安装） |
 
-插件安装后在 DSH profile 里只占一个 bundle：`my-fish`（本体），可选再装 `my-fish-beta`（独立测试鱼）。
+插件安装后在 DSH profile 里只占一个 bundle：`my-fish`。
 
 ---
 
@@ -106,7 +106,6 @@ QQ 不是插件自己登录的，而是通过 **SnowLuma**（OneBot 11 网关）
 | `$DSH_HOME`（默认 `~/.dsh`） | DSH 本体数据 | 否 |
 | `$DSH_HOME/fish-soul/` | `soul.db`（记忆）、`persona.json`、`bili-auth.json`、`douyin-browser/`、`workspace/`、`backups/` | **删了鱼就没了**，先备份 |
 | `$DSH_HOME/fish-soul-config.json` | 鱼设置（通道、语音、行为等） | 删了恢复默认 |
-| `~/.dsh-fish-beta/` | **测试版专用**独立数据（引擎、记忆、人格全隔离） | 可删（等于重置测试小鱼） |
 | `~/SnowLuma/` | SnowLuma 本体与 QQ 登录态 | 否 |
 | `~/fish-tts-shim/` | 语音桥 | 可删（失去语音） |
 | `~/fish-soul-patches/` | 可选补丁 | 可删 |
@@ -154,7 +153,6 @@ powershell -ExecutionPolicy Bypass -File tools/check-env.ps1
 | 抖音窗口不弹出 | 没装 Edge/Chrome，或浏览器路径变了；面板「显示抖音窗口」；检查 47890 是否被占用 |
 | 抖音登录了但收不到私信 | 通道「抖音」未启用；或机器人浏览器窗口被关掉（重新打开登录窗口） |
 | 自动检测更新失败 | 本机访问不了 GitHub；不影响使用，需要更新时手动从 Release 下载 |
-| 正式版和 beta 同时开 QQ 冲突 | 两个引擎会抢同一个 QQ。**不要让测试版和正式版同时连同一个 QQ**；beta 默认全关通道，测试版面板也只允许打开/启动 SnowLuma |
 | 面板白屏 / 版本不显示 | 插件没加载完或前端模块冲突；重启 DSH，检查插件页 my-fish 是否为 active |
 | 内存/磁盘占用大 | 清理 `fish-soul/backups/` 旧备份；抖音浏览器 profile 会缓存数据，可在面板里清 |
 
@@ -176,16 +174,7 @@ powershell -ExecutionPolicy Bypass -File tools/check-env.ps1
 
 ---
 
-## 10. 测试版（my-fish-beta）
-
-- 独立引擎 + 独立数据目录 `~/.dsh-fish-beta`，和正式版**数据完全隔离**（可同时安装）。
-- 需要同样的前置：DSH + 模型；QQ 若要用则仍需 SnowLuma，但**不要和正式版同时连同一个 QQ**。
-- 测试版面板只允许「打开/启动 SnowLuma」，其他本机服务控制被禁用，避免影响正式版。
-- 重置测试小鱼：禁用 beta → 删除 `~/.dsh-fish-beta` → 重新启用。
-
----
-
-## 11. 安全与隐私
+## 10. 安全与隐私
 
 - 插件包不含任何用户数据；所有记忆、人格、Cookie、日志只存本机。
 - 面板/插件接口只监听本机；B站/抖音/QQ 的登录态不会上传到任何第三方。

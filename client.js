@@ -1878,6 +1878,12 @@ window.__ModuleLoader__.load({
                           : null,
                         h("button", { type: "button", style: styles.btn(true), disabled: updateBusy, onClick: runUpdateCheck }, updateBusy ? "检查中…" : "检查更新")),
                       h("div", { style: styles.hint }, "版本号来自插件 package.json；更新来自 GitHub Releases（检查结果缓存 10 分钟）。")),
+          h(Card, { title: "更新日志" },
+            Array.isArray(host?.changelog) && host.changelog.length > 0
+              ? host.changelog.map((entry, idx) => h("div", { key: idx, style: { padding: "6px 0", borderTop: "1px solid rgba(128,128,128,0.12)" } },
+                  h("div", { style: { fontWeight: 600, marginBottom: 2 } }, `v${entry.version || "?"}${entry.date ? ` · ${entry.date}` : ""}`),
+                  (Array.isArray(entry.items) ? entry.items : []).map((item, i) => h("div", { key: i, style: { ...styles.hint, paddingLeft: 10, lineHeight: 1.7 } }, `• ${item}`))))
+              : h("div", { style: styles.hint }, "暂无更新日志")),
           h(Card, { title: "SurfCore 归档" },
             h(Row, { label: "记忆卡" }, h("span", null, sc.archive ? `${sc.archive.cardRecords} 条（QQ ${sc.archive.cardByScope?.qq ?? 0} / B站 ${sc.archive.cardByScope?.bili ?? 0}）` : "—")),
             h(Row, { label: "B站记忆库" }, h("span", null, sc.archive ? `${sc.archive.biliMemoryEntries} 条` : "—")),

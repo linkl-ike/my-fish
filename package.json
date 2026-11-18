@@ -25,7 +25,8 @@
     "market",
     "tools",
     "PUBLISH-ALTERNATIVES.md",
-    "PREREQUISITES.md"
+    "PREREQUISITES.md",
+    "changelog.json"
   ],
   "dsh": {
     "bundle": {

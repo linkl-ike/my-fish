@@ -36,6 +36,10 @@ dsh plugin --profile <你的 profile> add git+https://github.com/linkl-ike/my-fi
 dsh plugin --profile <你的 profile> add https://github.com/linkl-ike/my-fish/releases/download/v1.0.4/my-fish-1.0.4.tgz
 ```
 
+### 服务 / 归档 → 更新日志
+
+每次版本更新都会在面板的 **服务 / 归档** 里写一条简单易懂的更新日志，不用去翻 GitHub。
+
 ### 在 DSH「发现」里添加索引源
 
 **插件 → 发现 → 索引源（Index sources）→ 添加**：
