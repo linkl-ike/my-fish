@@ -539,6 +539,9 @@ async function startup(ctx, config, { log, gate }) {
 		// 身份恢复后就是群内容泄漏风险。workspacePath 也要带上：缺了它会退化成相对 cwd 的目录。
 		const douyinView = (channelId) => ({
 			channel: sessionChannelOf(channelId), channelId, speakers: [],
+			// 抖音认不出说话人（speakers 为空），但「心情」只需要知道这轮说了什么、不需要认人：
+			// 把本轮最后一句带出来，**只给情绪评估用**，不参与记忆召回与身份判定。
+			lastQuery: String((sessions.get(key)?.speakers ?? []).slice(-1)[0]?.query ?? ''),
 			workspacePath: gateway?.chatForSession(key)?.workspace_path ?? gateway?.workspacePath() ?? ''
 		});
 		const activeChannel = gateway?.turns?.get(key)?.channelId;
@@ -693,7 +696,7 @@ async function startup(ctx, config, { log, gate }) {
 		try {
 			const speakersNow = session.speakers ?? [];
 			const lastSpeaker = speakersNow[speakersNow.length - 1];
-			const said = String(lastSpeaker?.query ?? '').trim();
+			const said = String(lastSpeaker?.query ?? '').trim() || String(session.lastQuery ?? '').trim();
 			if (said !== '') {
 				const isMaster = lastSpeaker?.ownerId === 'user:master';
 				const groupish = session.channel === 'qq-group' || session.channel === 'douyin-group';
