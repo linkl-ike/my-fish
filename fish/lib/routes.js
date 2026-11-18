@@ -18,6 +18,7 @@ import { handleUpdateRoute } from './routes-update.js';
 import { handleWorldInfoRoute } from './routes-worldinfo.js';
 import { handlePersonaRoute } from './routes-persona.js';
 import { handleContactsRoute } from './routes-contacts.js';
+import { handleEmotionRoute } from './routes-emotion.js';
 import { pluginVersion } from './update-check.js';
 import { stickerConfig } from './stickers.js';
 import { slangConfig } from './slang.js';
@@ -891,6 +892,7 @@ export function registerRoutes(ctx, deps) {
 				// ── 人格：模板 / 编辑 / 导入角色卡 / 撤销 ──
 				if (await handlePersonaRoute({ method, path, req, send, readBody: readBodyLogged, sameOrigin, deps })) return;
 				// ── 联系：QQ / 抖音 / B站 身份显式合并 ──
+				if (await handleEmotionRoute({ method, path, req, send, sameOrigin, deps })) return;
 				if (await handleContactsRoute({ method, path, req, send, readBody: readBodyLogged, sameOrigin, deps })) return;
 
 				return send(404, { ok: false, error: 'not found' });

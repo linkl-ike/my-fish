@@ -231,7 +231,7 @@ window.__ModuleLoader__.load({
 
       const load = React.useCallback(async () => {
         setBusy(true);
-        const [h1, c1, v1, m1, l1, p1, st1, sl1, dg1, bk1, up1, rt1, ac1, wk1, ob1, wv1, stg1, ca1, bh1] = await Promise.all([
+        const [h1, c1, v1, m1, l1, p1, st1, sl1, dg1, bk1, up1, rt1, ac1, wk1, ob1, wv1, stg1, ca1, bh1, em1] = await Promise.all([
           getJson(`${API}/state`),
           getJson(`${FISH}/channels/state`),
           getJson(`${FISH}/voice/state`),
@@ -251,6 +251,7 @@ window.__ModuleLoader__.load({
           getJson(`${FISH}/storage/state`),
           getJson(`${FISH}/chat-archive/state`),
           getJson(`${FISH}/behavior/state`),
+          getJson(`${FISH}/emotion/state`),
         ]);
         if (h1 && h1.ok) setHost(h1); else setError((h1 && h1.error) || "读取融合状态失败");
         if (c1 && c1.ok !== false) setChannels(c1);
@@ -272,6 +273,7 @@ window.__ModuleLoader__.load({
         if (stg1 && stg1.ok !== false) setStorageS(stg1);
         if (ca1 && ca1.ok !== false) setChatArchS(ca1);
         if (bh1 && bh1.ok !== false) setBehaviorS(bh1);
+        if (em1 && em1.ok !== false) setEmotionS(em1);
         const [dg2, so2] = await Promise.all([
           getJson(`${FISH}/diagnose`),
           getJson(`${FISH}/inspector/self-outdated?limit=50`),
@@ -304,6 +306,8 @@ window.__ModuleLoader__.load({
       const [diagS, setDiagS] = React.useState(null);
       const [backupS, setBackupS] = React.useState(null);
       const [updateS, setUpdateS] = React.useState(null);
+      // v1.1 心情（PAD 情绪场）
+      const [emotionS, setEmotionS] = React.useState(null);
       const [updateInfo, setUpdateInfo] = React.useState(null);
       const [updateBusy, setUpdateBusy] = React.useState(false);
       const runUpdateCheck = React.useCallback(async () => {
@@ -447,6 +451,47 @@ window.__ModuleLoader__.load({
           h("ul", { style: { margin: "6px 0 0 18px", padding: 0 } }, warnings.map((w, i) => h("li", { key: i }, w))))
         : h("div", { role: "status", style: { border: "1px solid rgba(47,158,106,0.45)", borderRadius: 10, padding: "9px 12px", marginBottom: 12, background: "rgba(47,158,106,0.08)" } },
           "自检通过：单一引擎在跑，SnowLuma 与语音桥都在线。"));
+
+      // 心情（v1.1：PAD 情绪场，只影响语气）
+      const EmotionTab = () => {
+        const e = emotionS && emotionS.ok !== false ? emotionS : null;
+        const bar = (label, pct) => h(Row, { label }, h("div", { style: { flex: "1 1 auto", minWidth: 0 } },
+          h("div", { style: { height: 8, borderRadius: 999, background: "rgba(128,128,128,0.22)", overflow: "hidden" } },
+            h("div", { style: { width: `${Math.max(0, Math.min(100, pct))}%`, height: "100%", background: "rgba(80,140,255,0.7)" } })),
+          h("div", { style: styles.hint }, `${Math.round(pct)}%`)));
+        return h("div", null,
+          h("div", { style: styles.grid },
+            h(Card, { title: "此刻的心情" },
+              e
+                ? h("div", null,
+                  h(Row, { label: "整体" }, h("span", null, e.label || "—")),
+                  h(Row, { label: "派生情绪" }, h("span", null, (e.derived || []).length > 0 ? e.derived.join("、") : "没有明显起伏")),
+                  h(Row, { label: "精力" }, h("span", null, `${e.energy ?? "—"}/100 · ${(e.energy ?? 0) >= 70 ? "挺有精神" : (e.energy ?? 0) >= 40 ? "一般" : "有点乏"}`)),
+                  bar("快乐", e.percent?.p ?? 50),
+                  bar("唤醒", e.percent?.a ?? 50),
+                  bar("掌控", e.percent?.d ?? 50),
+                  h("div", { style: { display: "flex", justifyContent: "flex-end", marginTop: 10 } },
+                    h("button", { type: "button", style: styles.btn(false), disabled: busy, onClick: async () => {
+                      const r = await postJson(`${FISH}/emotion/reset`, {});
+                      notify(r && r.ok ? "已经重置成刚起床的平静心情" : `重置失败：${(r && r.error) || ""}`);
+                      void load();
+                    } }, "重置为平静")))
+                : h("div", { style: styles.hint }, "还没拿到心情数据（重启 DSH 后引擎会加载新模块）")),
+            h(Card, { title: "情绪通道" },
+              e && (e.channels || []).length > 0
+                ? (e.channels || []).map((c) => h(Row, { key: c.key, label: c.label }, h("span", { style: styles.mono }, `${Math.round((c.value || 0) * 100)}%`)))
+                : h("div", { style: styles.hint }, "最近没有明显的情绪起伏")),
+            h(Card, { title: "最近影响心情的事" },
+              e && (e.recent || []).length > 0
+                ? (e.recent || []).map((r, i) => h("div", { key: i, style: { padding: "5px 0", borderTop: "1px solid rgba(128,128,128,0.12)", fontSize: 12 } },
+                    `${fmtTime(r.at)} · ${r.label || r.tag || "事件"}${r.source ? `（${r.source}）` : ""} · 快乐 ${Number(r.delta?.p) >= 0 ? "+" : ""}${r.delta?.p ?? 0}，唤醒 ${Number(r.delta?.a) >= 0 ? "+" : ""}${r.delta?.a ?? 0}`))
+                : h("div", { style: styles.hint }, "还没有记录")),
+            h(Card, { title: "它是怎么工作的" },
+              h("div", { style: styles.hint },
+                "融合自 dsh-emotion-memory 的思路（MIT）：PAD 三维连续场（快乐 / 唤醒 / 掌控）· 14 个情绪通道 · 派生情绪（心疼、吃醋、想念…）· 精力。全部规则驱动，不调模型、不额外花 token；每 5 分钟向基线回落，精力随聊天下降、跨夜恢复。",
+                h("br"), "只影响语气：不改记忆、不改人格、不改事实。"))),
+          h("div", { style: styles.hint }, "面板每 30 秒自动刷新；她聊得越多，这里起伏越明显。"));
+      };
 
       // 总览
       const Overview = () => h("div", null,
@@ -1961,6 +2006,7 @@ window.__ModuleLoader__.load({
         : tab === "contact" ? ContactTab()
         : tab === "memory" ? MemoryTab()
         : tab === "person" ? PersonTab()
+        : tab === "emotion" ? EmotionTab()
         : tab === "persona" ? PersonaTab()
         : tab === "models" ? ModelsTab()
         : tab === "stickers" ? StickersTab()
@@ -1977,7 +2023,7 @@ window.__ModuleLoader__.load({
         h("div", { style: styles.tabs },
           TabBtn("overview", "总览"), TabBtn("channels", "通道"), TabBtn("voice", "语音"),
           TabBtn("behavior", "B站 / 抖音"), TabBtn("contact", "联系"), TabBtn("memory", "记忆"), TabBtn("person", "人物"),
-          TabBtn("persona", "人格"), TabBtn("models", "模型 / 用量"), TabBtn("stickers", "表情 / 黑话"),
+          TabBtn("emotion", "心情"), TabBtn("persona", "人格"), TabBtn("models", "模型 / 用量"), TabBtn("stickers", "表情 / 黑话"),
           TabBtn("retrieval", "检索"), TabBtn("world", "世界书"), TabBtn("logs", "日志 / 备份"),
           TabBtn("dynamics", "动态 / 整理"), TabBtn("storage", "存储 / 存档"),
           TabBtn("archive", "归档浏览"), TabBtn("service", "服务 / 归档")),

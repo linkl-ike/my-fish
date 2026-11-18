@@ -54,6 +54,7 @@ import { VirtualClock } from './clock.js';
 import { EmbeddingClient, VectorWorker, recall, recallSync, vectorRanks } from './retrieval.js';
 import { LifeEngine } from './life.js';
 import { registerRoutes, registerAgentHooks, registerAgentSections, mountApiGate } from './routes.js';
+import { createEmotionField } from './emotion.js';
 import { DiagLog } from './diag-log.js';
 import { UpdateChecker, pluginVersion } from './update-check.js';
 import { GroupAdmin } from './qq-group-admin.js';
@@ -230,6 +231,8 @@ async function startup(ctx, config, { log, gate }) {
 	ctx.effect(() => () => { try { db.close(); } catch { /* 已关闭 */ } }, 'dsh-fish-soul: db');
 	// 虚拟钟从上次快照续走（加速验收中途重启不倒退）
 	const clock = new VirtualClock(undefined, Number(getKv(db, 'clock.virtualMs', 0)) || 0);
+	// v1.1 心情：PAD 情绪场（只影响语气）。先建好，setup 组装上下文时用。
+	const emotion = createEmotionField({ db, clock, log });
 
 	diag.db = db;
 	step(STARTUP_STEPS[1]);
@@ -686,6 +689,19 @@ async function startup(ctx, config, { log, gate }) {
 			lines.push('[DSH 本地语音] 要用语音说的话单独一段、开头写 [语音]，不要带表情或链接；只生成本地文件，不会发到 QQ。');
 		}
 		if (session === undefined) return lines.join('\n');
+		// v1.1 心情：本轮对方说的话先更新她的情绪底色，再把底色交给模型 —— 只影响语气，不动事实与记忆
+		try {
+			const speakersNow = session.speakers ?? [];
+			const lastSpeaker = speakersNow[speakersNow.length - 1];
+			const said = String(lastSpeaker?.query ?? '').trim();
+			if (said !== '') {
+				const isMaster = lastSpeaker?.ownerId === 'user:master';
+				const groupish = session.channel === 'qq-group' || session.channel === 'douyin-group';
+				emotion.evaluate(said, { weight: isMaster ? 1.2 : groupish ? 0.8 : 1, source: session.channel ?? '' });
+			}
+			const moodLine = emotion.promptLine();
+			if (moodLine !== '') lines.push(moodLine);
+		} catch { /* 心情只是语气，出错不影响聊天 */ }
 		// 这一轮确实组了瞬态块（动态页拿它区分「没跑」和「跑了但没召回到」，#78）
 		// 🔴 同时记到这一轮的 turn state 上：sendReply 在 turn/end 之后才跑，
 		//    而下一轮消息的 beginTurn 会把 sessions 里这条记录整个替换掉（recalledAt 归零）
@@ -1199,7 +1215,7 @@ async function startup(ctx, config, { log, gate }) {
 		db, clock, embedder, embeddingCfg, worker, life, getConfig, saveConfig, log, gateway, channel, bili, biliClient, browser, biliSocial, douyinSocial,
 		douyin, douyinHost, douyinBrowser, backup, historyImporter, updater, worldBooks,
 		llmRouter, voice, stickers, slang, persona, reloadPersona, webConfig, hasWebTools, webUsedToday, hostWebAvailable, hostWebState, runWebSearch,
-		journal, digester, diary, weekly, storage, chatArchive, diag,
+		journal, digester, diary, weekly, storage, chatArchive, diag, emotion,
 		debugRecall: (o) => debugRecall({ db, clock, embedder, embeddingCfg: embeddingCfg(), config: retrievalCfg(), ...o })
 	});
 

@@ -184,3 +184,12 @@ my-fish (client client.js)
 - `.github/workflows/release.yml` 新步骤：打 tag 时用 `scripts/make-release-notes.mjs` 自动生成 Release 正文（本版更新日志 + 环境要求速查 + 安装/升级步骤 + 附件说明），并额外打包 `my-fish-<版本>-env-and-guide.zip`（PREREQUISITES.md / INSTALL.md / README.md / THIRD-PARTY-NOTICES.md / LICENSE / tools/check-env.ps1）。
 - 目的：从插件市场或 Release 页面来的人，不用翻仓库就能看到「需要什么环境、怎么装、装完怎么验」。
 - 实测：v1.0.7 的 Release 自动产出 2 个资产（`my-fish-1.0.7.tgz` + `my-fish-1.0.7-env-and-guide.zip`），正文为自动生成的中文说明。
+
+### 1.1.0 心情：PAD 情绪场（2026-11-19 凌晨）
+
+- 融合 dsh-emotion-memory（MIT）的思路，重写成规则驱动、零模型调用的引擎模块 `fish/lib/emotion.js`：PAD 三维（快乐 / 唤醒 / 掌控，-1..1）+ 14 个情绪通道 + 派生情绪（心疼 / 吃醋 / 委屈 / 思念…）+ 精力（0-100）。
+- 接入 `buildContextBlock`：先用本轮最后一位说话人的话更新心情，再把 `[你现在的心情]` 一行注入瞬态块；平静且精力正常时不注入（不占上下文）。只影响语气，不改事实、记忆与人格。
+- 路由：`GET /emotion/state`、`POST /emotion/reset`；状态存 soul.db 的 kv（`emotion.field.v1`）。
+- 面板新增「心情」标签页（第 18 个）：整体心情 / 派生情绪 / 精力 / PAD 进度条 / 情绪通道 / 最近影响心情的事 / 重置为平静。
+- 验证：`scripts/verify-emotion.mjs` ALL PASS；离线 Host / Client 验证通过；重启后在线验收。
+- 引擎版本 0.18.5-local.3 → 0.18.5-local.4。

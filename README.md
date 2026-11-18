@@ -3,7 +3,7 @@
 一个 DeepSeek Harness（DSH）插件：**鱼的引擎 + 一体化面板**装在同一个 bundle 里，profile 里只装这一个插件。
 
 - **引擎**：`fish/`（本地维护的 fish-core 副本，MIT）——人格、按人长期记忆、QQ / B站 / 抖音私信、语音、日记、周记、备份
-- **面板**：17 个标签页——总览 / 通道 / 语音 / B站·抖音 / 联系 / 记忆 / 人物 / 人格 / 模型·用量 / 表情·黑话 / 检索 / 世界书 / 日志·备份 / 动态·整理 / 存储·存档 / 归档浏览 / 服务·归档
+- **面板**：18 个标签页——总览 / 通道 / 语音 / B站·抖音 / 联系 / 记忆 / 人物 / 心情 / 人格 / 模型·用量 / 表情·黑话 / 检索 / 世界书 / 日志·备份 / 动态·整理 / 存储·存档 / 归档浏览 / 服务·归档
 - **服务/归档** 页里有版本信息：插件版本、鱼引擎版本、面板接口、数据目录
 
 ## 前置环境
@@ -30,10 +30,10 @@ powershell -ExecutionPolicy Bypass -File tools/check-env.ps1
 dsh plugin --profile <你的 profile> add git+https://github.com/linkl-ike/my-fish.git#<commit>
 ```
 
-也可以下载 Release 里的 `my-fish-1.0.7.tgz`；每个 Release 还附带 `my-fish-<版本>-env-and-guide.zip`（环境清单 + 安装指南 + 一键自检脚本），Release 说明里直接写了环境要求和安装步骤：
+也可以下载 Release 里的 `my-fish-1.1.0.tgz`；每个 Release 还附带 `my-fish-<版本>-env-and-guide.zip`（环境清单 + 安装指南 + 一键自检脚本），Release 说明里直接写了环境要求和安装步骤：
 
 ```sh
-dsh plugin --profile <你的 profile> add https://github.com/linkl-ike/my-fish/releases/download/v1.0.7/my-fish-1.0.7.tgz
+dsh plugin --profile <你的 profile> add https://github.com/linkl-ike/my-fish/releases/download/v1.1.0/my-fish-1.1.0.tgz
 ```
 
 ### 服务 / 归档 → 更新日志
@@ -95,8 +95,8 @@ INSTALL.md / PUBLISH-GITHUB.md / LICENSE / THIRD-PARTY-NOTICES.md
 
 ## 版本
 
-- 插件：**1.0.7**
-- 内嵌引擎：fish-core 0.18.5-local.3
+- 插件：**1.1.0**
+- 内嵌引擎：fish-core 0.18.5-local.4
 
 ## 发布到插件市场
 
