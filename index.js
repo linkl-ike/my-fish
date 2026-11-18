@@ -332,16 +332,23 @@ function findSurfCharacterDir() {
   return '';
 }
 
+// B站登录凭据只存在 $DSH_HOME/fish-soul/bili-auth.json（不进设置文件、不回传前端）。
+// Host 半这里只读文件判断「有没有登录过」，不读出、不返回任何 cookie 内容。
+function hasBiliAuth() {
+  const auth = readJson(join(PATHS.fishHome, 'fish-soul', 'bili-auth.json'));
+  return Boolean(auth?.cookies?.SESSDATA);
+}
+
 function collectFish() {
   const home = PATHS.fishHome;
   const cfg = readJson(join(home, 'fish-soul-config.json')) ?? {};
   const persona = readJson(join(home, 'fish-soul', 'persona.json')) ?? {};
   const out = {
-    version: findFishVersion(),
+    version: readEngineVersion() || findFishVersion(),
     personaName: String(persona.name ?? persona?.data?.name ?? ''),
     qq: { enabled: cfg.qq?.enabled === true, privateAllow: (cfg.qq?.privateAllowList ?? []).length, groups: (cfg.qq?.groupAllowList ?? []).length },
     douyin: { enabled: cfg.douyin?.enabled === true, autoReply: cfg.douyin?.autoReply === true, masterUid: String(cfg.douyin?.masterUid ?? '') },
-    bili: { enabled: cfg.bili?.enabled === true, loggedIn: false },
+    bili: { enabled: cfg.bili?.enabled === true, loggedIn: hasBiliAuth() },
     voice: {
       enabled: cfg.voice?.enabled === true,
       provider: String(cfg.voice?.ttsProvider ?? ''),
