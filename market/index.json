@@ -96,7 +96,7 @@
           "source": {
             "type": "git",
             "url": "https://github.com/linkl-ike/my-fish",
-            "commit": "f631a349da8cc6e733aa01ca1f527f3254aa733a"
+            "commit": "9e48ace458f0dd33e7f526a60b9f70e1f59050f7"
           },
           "engines": {
             "dsh": ">=0.2.1"
