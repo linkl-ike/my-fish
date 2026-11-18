@@ -165,3 +165,9 @@ my-fish (client client.js)
 - 鱼的接口前缀仍为 `/api/plugins/fish-soul/*`，数据目录仍为 `~/.dsh/fish-soul/`（内部契约与数据安全考虑，未改）。
 - 验证脚本同步改为 my-fish 路径/接口；改名后运行态验收：引擎 embedded=true、鱼自检 7/7、记忆 216、verify-live 11 PASS、API 37 PASS、17 标签页无报错。
 - 备份与回滚：`C:\Users\<用户>\dsh-backup-rename-20261118-0100\`（含 `回滚.bat`、改名前的插件目录、profile 快照、鱼数据热备份）。
+### 1.0.5 打磨（2026-11-18 深夜）
+
+- Host `/state`：`fish.version` 改为读内嵌引擎版本（之前从 profile 的 node_modules 找已不存在的 `dsh-fish-soul`，恒为空）；`bili.loggedIn` 改为读 `bili-auth.json` 判断（之前硬编码 false）。
+- 检查更新：三条线路（GitHub API / releases 302 / atom）都连不上时，`error` 改为「连不上 GitHub（当前网络受限）：可以开加速器后再试，或到 GitHub Releases 页手动下载。」，技术细节留在新增的 `errors` 数组里。
+- 总览页「服务」卡片新增「抖音收件箱」：显示未确认私信 / 遗漏提示数量，提醒去「通道 → 抖音」处理。
+- 版本 1.0.4 → 1.0.5；README / INSTALL / PREREQUISITES / 发布文档 / market 索引同步。

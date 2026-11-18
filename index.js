@@ -200,6 +200,9 @@ async function checkUpdate(force = false) {
   }
 
   const hasUpdate = latest !== '' && compareVersions(latest, current) > 0;
+  // 三条线路都失败时，别把 ECONNREFUSED 这种底层错误直接甩给用户：
+  // 这台机器访问 GitHub 经常被挡，给一句能照做的提示，技术细节放在 errors 里。
+  const networkOnly = errors.length > 0 && errors.every((e) => /ECONNREFUSED|ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|EPIPE|EACCES|fetch failed|socket|network|timeout/i.test(e));
   const data = {
     ok: true,
     current,
@@ -211,7 +214,12 @@ async function checkUpdate(force = false) {
     publishedAt,
     checkedAt: Date.now(),
     source,
-    error: latest === '' ? errors.join('；').slice(0, 240) : '',
+    error: latest === ''
+      ? (networkOnly
+        ? '连不上 GitHub（当前网络受限）：可以开加速器后再试，或到 GitHub Releases 页手动下载。'
+        : errors.join('；').slice(0, 240))
+      : '',
+    errors,
   };
   UPDATE_CACHE = { at: Date.now(), data };
   return data;

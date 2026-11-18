@@ -469,7 +469,13 @@ window.__ModuleLoader__.load({
             h(Row, { label: "SnowLuma" }, h(Status, { ok: svc.snowluma?.http && svc.snowluma?.ws }, `HTTP ${svc.snowluma?.http ? "✓" : "✕"} / WS ${svc.snowluma?.ws ? "✓" : "✕"}`)),
             h(Row, { label: "语音桥 8766" }, h(Status, { ok: svc.voiceBridge?.up }, svc.voiceBridge?.up ? `在线${svc.voiceBridge?.health?.speaker ? ` · ${svc.voiceBridge.health.speaker}` : ""}` : "离线")),
             h(Row, { label: "SurfCore 3100" }, h(Status, { ok: !svc.surfcoreConsole?.up }, svc.surfcoreConsole?.up ? "在跑（应停）" : "已停（预期）")),
-            h(Row, { label: "看门狗" }, h("span", null, svc.watchdogPaused ? "已暂停" : "运行中（每 2 分钟）"))),
+            h(Row, { label: "看门狗" }, h("span", null, svc.watchdogPaused ? "已暂停" : "运行中（每 2 分钟）")),
+            (() => {
+              const box = douyin?.channel?.inbox || {};
+              const n = Number(box.counts?.unknown ?? 0);
+              const gaps = Number(box.gapCount ?? 0);
+              return h(Row, { label: "抖音收件箱" }, h(Status, { ok: n === 0 && gaps === 0 }, n === 0 && gaps === 0 ? "没有未确认消息" : `${n} 条未确认 · ${gaps} 个遗漏提示（去「通道 → 抖音」处理）`));
+            })()),
           h(Card, { title: "SurfCore 归档" },
             h(Row, { label: "版本" }, h("span", null, sc.version || "—")),
             h(Row, { label: "记忆卡" }, h("span", null, sc.archive ? `${sc.archive.cardRecords} 条（QQ ${sc.archive.cardByScope.qq} / B站 ${sc.archive.cardByScope.bili}）` : "—")),
