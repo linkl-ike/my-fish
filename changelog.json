@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.0.7",
+    "date": "2026-11-18",
+    "items": [
+      "新增：每次 GitHub Release 都会附带环境清单和安装指南（my-fish-<版本>-env-and-guide.zip，含 PREREQUISITES / INSTALL / 一键自检脚本），Release 说明里也直接写了环境要求和安装步骤，别人不用翻仓库就能装。",
+      "优化：Release 说明改为自动生成（本版更新日志 + 环境要求 + 安装步骤 + 附件说明），以后发版不用手工写。"
+    ]
+  },
+  {
     "version": "1.0.6",
     "date": "2026-11-18",
     "items": [

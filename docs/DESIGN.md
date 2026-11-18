@@ -178,3 +178,9 @@ my-fish (client client.js)
 - 实现只动面板：复用鱼已有的 `POST /douyin/inbox-resolve`（`action: retry` 把消息从 unknown 放回 pending，下一轮轮询重新处理并回复）。
 - 诚实告知：重试是「重新处理并重新生成回复」，不是重放旧文本；如果原回复其实已经发出去了，重试会造成重复，列表标题里写明「重试 = 重新处理并回复」。
 - 实测：2 条「回复没发出去（发送失败）」→ 点「重试全部未确认」→ 队列 pending=2 → 约 16 秒后 pending=0，两条都变 done，回复成功发出，未确认计数清零。
+
+### 1.0.7 Release 附带环境与指南（2026-11-18 深夜）
+
+- `.github/workflows/release.yml` 新步骤：打 tag 时用 `scripts/make-release-notes.mjs` 自动生成 Release 正文（本版更新日志 + 环境要求速查 + 安装/升级步骤 + 附件说明），并额外打包 `my-fish-<版本>-env-and-guide.zip`（PREREQUISITES.md / INSTALL.md / README.md / THIRD-PARTY-NOTICES.md / LICENSE / tools/check-env.ps1）。
+- 目的：从插件市场或 Release 页面来的人，不用翻仓库就能看到「需要什么环境、怎么装、装完怎么验」。
+- 实测：v1.0.7 的 Release 自动产出 2 个资产（`my-fish-1.0.7.tgz` + `my-fish-1.0.7-env-and-guide.zip`），正文为自动生成的中文说明。

@@ -1,7 +1,8 @@
 # my fish 前置环境
 
-> 适用版本：my fish 1.0.6（fish 引擎 0.18.5-local.3）  
-> 一句话：**DSH 是必需品；QQ 聊天需要 SnowLuma；B站/抖音只需要浏览器；其余都是可选增强。**
+> 适用版本：my fish 1.0.7（fish 引擎 0.18.5-local.3）  
+> 一句话：**DSH 是必需品；QQ 聊天需要 SnowLuma；B站/抖音只需要浏览器；其余都是可选增强。**  
+> 每个 GitHub Release 附件里都有本文件 + 安装指南 + 一键自检脚本的打包（`my-fish-<版本>-env-and-guide.zip`），Release 说明里也写了环境速查和安装步骤。
 
 ---
 
@@ -120,7 +121,7 @@ QQ 不是插件自己登录的，而是通过 **SnowLuma**（OneBot 11 网关）
 1. 安装 DSH 桌面版，创建/选一个 profile。
 2. 安装插件（任选其一）：
    ```bash
-   dsh plugin --profile <profile> add https://github.com/linkl-ike/my-fish/releases/download/v1.0.6/my-fish-1.0.6.tgz
+   dsh plugin --profile <profile> add https://github.com/linkl-ike/my-fish/releases/download/v1.0.7/my-fish-1.0.7.tgz
    # 或从仓库安装
    dsh plugin --profile <profile> add git+https://github.com/linkl-ike/my-fish.git
    ```
@@ -162,7 +163,7 @@ powershell -ExecutionPolicy Bypass -File tools/check-env.ps1
 
 | 组件 | 验证版本 |
 |---|---|
-| my fish | 1.0.6 |
+| my fish | 1.0.7 |
 | fish 引擎 | 0.18.5-local.3 |
 | DeepSeek Harness | 0.2.2-rc.3 |
 | Node（DSH 内置） | 24.21.0 |

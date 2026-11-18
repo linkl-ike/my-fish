@@ -18,14 +18,32 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Pack
+      # Release 正文 = 本版更新日志 + 环境要求 + 安装/升级步骤 + 附件说明（中文，由仓库内脚本生成）
+      - name: Build release notes
+        run: node scripts/make-release-notes.mjs > release-notes.md
+
+      - name: Pack plugin
         run: npm pack
 
-      - name: Publish GitHub Release asset
+      # 环境清单 + 安装指南 + 一键自检脚本，单独打成一个 zip 资产，方便别人直接下载照着做
+      - name: Pack environment + guide
+        run: |
+          set -euo pipefail
+          VER="${GITHUB_REF_NAME#v}"
+          rm -rf env-and-guide
+          mkdir -p env-and-guide/tools
+          cp PREREQUISITES.md INSTALL.md README.md THIRD-PARTY-NOTICES.md LICENSE env-and-guide/
+          cp tools/check-env.ps1 env-and-guide/tools/
+          cd env-and-guide
+          zip -r "../my-fish-${VER}-env-and-guide.zip" .
+
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: '*.tgz'
-          generate_release_notes: true
+          body_path: release-notes.md
+          files: |
+            *.tgz
+            my-fish-*-env-and-guide.zip
 
       # 可选：发布到 npm（需要仓库 secret NPM_TOKEN；先确认包名可用）
       # - name: Publish to npm
