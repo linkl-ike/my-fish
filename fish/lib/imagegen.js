@@ -44,19 +44,19 @@ export class ImageGen {
 			enabled: c.enabled === true,
 			baseURL: String(c.baseURL ?? 'http://127.0.0.1:8188').replace(/\/+$/, ''),
 			unet: String(c.unet ?? 'qwen_image_2.1_int8_convrot.safetensors'),
-			clip: String(c.clip ?? 'qwen3.5_9b_qwen_image_2.1_pe_i2i.int8_convrot.safetensors'),
+			clip: String(c.clip ?? 'qwen3vl_8b_int8_convrot.safetensors'),
 			clipType: String(c.clipType ?? 'qwen_image'),
 			vae: String(c.vae ?? 'qwen_image_2.1_vae_bf16.safetensors'),
 			positivePrefix: String(c.positivePrefix ?? ''),
 			negative: String(c.negative ?? DEFAULT_NEG),
 			width: Math.round(num(c.width, 1024, 256, 2048) / 32) * 32,
 			height: Math.round(num(c.height, 1024, 256, 2048) / 32) * 32,
-			steps: Math.round(num(c.steps, 20, 4, 80)),
+			steps: Math.round(num(c.steps, 40, 4, 80)),
 			cfg: num(c.cfg, 4, 1, 20),
 			shift: num(c.shift, 3.1, 0.5, 10),
 			autoPaint: c.autoPaint !== false,
 			autoPerDay: Math.round(num(c.autoPerDay, 1, 0, 6)),
-			maxPromptChars: Math.round(num(c.maxPromptChars, 300, 40, 1000))
+			maxPromptChars: Math.round(num(c.maxPromptChars, 1200, 100, 3000))
 		};
 	}
 

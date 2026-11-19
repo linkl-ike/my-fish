@@ -124,19 +124,19 @@ export function fishSoulConfigSchema(z) {
 			enabled: z.boolean().default(false),
 			baseURL: z.string().default('http://127.0.0.1:8188'),
 			unet: z.string().default('qwen_image_2.1_int8_convrot.safetensors'),
-			clip: z.string().default('qwen3.5_9b_qwen_image_2.1_pe_i2i.int8_convrot.safetensors'),
+			clip: z.string().default('qwen3vl_8b_int8_convrot.safetensors'),
 			clipType: z.string().default('qwen_image'),
 			vae: z.string().default('qwen_image_2.1_vae_bf16.safetensors'),
 			positivePrefix: z.string().default(''),
 			negative: z.string().default(''),
 			width: z.number().default(1024),
 			height: z.number().default(1024),
-			steps: z.number().default(20),
+			steps: z.number().default(40),
 			cfg: z.number().default(4),
 			shift: z.number().default(3.1),
 			autoPaint: z.boolean().default(true),
 			autoPerDay: z.number().default(1),
-			maxPromptChars: z.number().default(300)
+			maxPromptChars: z.number().default(1200)
 		}).default({}),
 		memory: z.object({ // v0.8 聊完自动记：一段聊天空下来 idleMinutes 分钟（或攒够 maxLines 句）就整理一次
 			autoExtract: z.boolean().default(true),

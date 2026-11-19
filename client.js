@@ -1149,11 +1149,11 @@ window.__ModuleLoader__.load({
             h(Row, { label: "自己画" }, h(Switch, { checked: (ig && ig.autoPaint) !== false, onChange: (v) => saveImagegen({ autoPaint: v }) })),
             h("div", { style: styles.hint }, `今天自己画了 ${(ig && ig.paintedToday) || 0} / ${(ig && ig.autoPerDay) || 1} 张；空闲时她会自己想题目画一张（8 小时后可再画）。`)),
           h(Card, { title: "画一张" },
-            h(Text, { value: paintPrompt, onChange: setPaintPrompt, placeholder: "画面描述，比如：一只橘猫在雨里等公交，治愈系插画" }),
+            h(Area, { value: paintPrompt, onChange: setPaintPrompt, placeholder: "画面描述（300~800 字）：主体在做什么、场景、构图视角、光线、色彩、风格（插画/写实/电影感）、氛围、细节——写得越具体越不跑偏", style: { width: "100%", minHeight: 130 } }),
             h("div", { style: { display: "flex", gap: 8, marginTop: 10, justifyContent: "flex-end" } },
               h("button", { type: "button", style: styles.btn(true), disabled: paintBusy || !ig || ig.enabled !== true, onClick: () => paintNow() }, paintBusy ? "画着…（约 1 分钟）" : "生成")),
             paintResult ? h("div", { style: { marginTop: 12 } }, h("img", { src: paintResult, style: { maxWidth: "100%", borderRadius: 12 } })) : null,
-            h("div", { style: styles.hint }, "12GB 显存下 1024×1024 约 30~90 秒；图存在 ~/.dsh/fish-soul/gallery/。")),
+            h("div", { style: styles.hint }, "提示词建议 300~800 字；12GB 显存下 1024×1024 / 40 步约 1~2 分钟；图存在 ~/.dsh/fish-soul/gallery/。")),
           h(Card, { title: "画册" },
             gallery.length === 0
               ? h("div", { style: styles.hint }, "还没画过。等她画，或者上面点「生成」。")
