@@ -5,8 +5,7 @@
     "items": [
       "新增：语音页补全配置项——服务商 / 接口地址 / AppID / Access Token / 集群 / Resource ID / 音色 ID 都能在面板里直接填和保存，不用再改配置文件。",
       "新增：语音页「语音服务怎么连」新手引导——本机语音桥（免登录）、火山引擎老版控制台（AppID + Access Token）、新版控制台（只填 API Key）三种接法，附获取步骤和控制台直达按钮。",
-      "新增：听语音（STT）补了 Key 输入框；Access Token 保存后不回显原值，要改才重新填。",
-      "说明：语音链路本身正常，之前是这些配置藏在文件里、面板没露出来；引擎 /voice/state 现在会返回服务商和火山 AppID / 集群 / Resource ID 供面板回显。"
+      "新增：听语音（STT）补了 Key 输入框；Access Token 保存后不回显原值。说明：语音链路本身正常，之前是配置藏在文件里；引擎 /voice/state 现在会返回服务商和火山 AppID / 集群 / Resource ID 供面板回显。"
     ]
   },
   {
