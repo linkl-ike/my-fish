@@ -298,6 +298,13 @@ export async function handleSoulRoute({ method, path, url, req, res, send, readB
 		send(200, { ok: true, items: memoryDigest?.list() ?? [] });
 		return true;
 	}
+	if (path === '/memory/summary/edit' && post) {
+		if (!guard()) return true;
+		const b = await body();
+		const r3 = memoryDigest?.saveManual(String(b.ownerId ?? 'user:master'), String(b.text ?? '')) ?? { ok: false, error: '记忆摘要没起来' };
+		send(200, { ok: r3.ok === true, error: r3.error, text: r3.text, at: r3.at, manual: r3.manual === true });
+		return true;
+	}
 	if (path === '/memory/summary/refresh' && post) {
 		if (!guard()) return true;
 		if (!memoryDigest) { send(200, { ok: false, error: '记忆摘要没起来' }); return true; }

@@ -449,6 +449,8 @@ window.__ModuleLoader__.load({
       const [bulkResult, setBulkResult] = React.useState(null);
       const [memStateS, setMemStateS] = React.useState(null);
       const [memSummaryS, setMemSummaryS] = React.useState(null);
+      const [memSummaryEdit, setMemSummaryEdit] = React.useState(null); // 正在手改摘要的 ownerId
+      const [memSummaryDraft, setMemSummaryDraft] = React.useState("");
       const [memMdPreview, setMemMdPreview] = React.useState("");
       const [memExports, setMemExports] = React.useState(null);
       const [memImportText, setMemImportText] = React.useState("");
@@ -978,6 +980,19 @@ window.__ModuleLoader__.load({
           if (ms && ms.ok === true) setMemSummaryS(ms.items || []);
         } finally { setMemBusy(false); }
       };
+      // 手动编辑长期记忆摘要（手动版优先，自动刷新不会覆盖）
+      const saveEditSummary = async (ownerId) => {
+        setMemBusy(true);
+        try {
+          const r = await postJson(`${FISH}/memory/summary/edit`, { ownerId, text: memSummaryDraft });
+          notify(r && r.ok ? "摘要已保存" : `保存失败：${(r && r.error) || ""}`);
+          if (r && r.ok) {
+            setMemSummaryEdit(null);
+            const ms = await getJson(`${FISH}/memory/summary/state`);
+            if (ms && ms.ok === true) setMemSummaryS(ms.items || []);
+          }
+        } finally { setMemBusy(false); }
+      };
       // 记忆体检：重复 / 近似重复 / 过时 / 找不到主人；整理只归档不删除
       const runAudit = async () => {
         setMemBusy(true);
@@ -1212,12 +1227,19 @@ window.__ModuleLoader__.load({
           h(Card, { title: "长期记忆摘要（每轮进她上下文）" },
             (memSummaryS || []).length === 0
               ? h("div", { style: styles.hint }, "还没生成（聊几轮后会自动生成；也可以点下面的按钮手动生成）")
-              : (memSummaryS || []).map((sx) => h("div", { key: sx.ownerId, style: { marginBottom: 10 } },
-                  h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 } },
-                    h("span", { style: { fontWeight: 600 } }, `${sx.name}${sx.at ? ` · ${fmtTime(sx.at)}` : ""}${sx.count ? ` · 基于 ${sx.count} 条` : ""}`),
-                    h("button", { type: "button", style: styles.btn(false), disabled: memBusy, onClick: () => refreshSummary(sx.ownerId) }, "重新生成")),
-                  h("div", { style: { fontSize: 13, opacity: 0.85, marginTop: 4, whiteSpace: "pre-wrap" } }, sx.text || "（空）"))),
-            h("div", { style: styles.hint }, "摘要是模型把最近 60 条记忆蒸馏成的一段背景：每轮都带上，检索没命中时也有记忆底色。"),
+              : (memSummaryS || []).map((sx) => h("div", { key: sx.ownerId, style: { marginBottom: 10, paddingBottom: 8, borderBottom: "1px solid rgba(0,0,0,0.05)" } },
+                  h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" } },
+                    h("span", { style: { fontWeight: 600 } }, `${sx.name}${sx.at ? ` · ${fmtTime(sx.at)}` : ""}${sx.count ? ` · 基于 ${sx.count} 条` : ""}${sx.manual ? " · 手动编辑" : ""}`),
+                    h("span", { style: { display: "flex", gap: 8 } },
+                      memSummaryEdit === sx.ownerId
+                        ? [h("button", { key: "save", type: "button", style: styles.btn(true), disabled: memBusy, onClick: () => saveEditSummary(sx.ownerId) }, "保存"),
+                           h("button", { key: "cancel", type: "button", style: styles.btn(false), disabled: memBusy, onClick: () => setMemSummaryEdit(null) }, "取消")]
+                        : [h("button", { key: "edit", type: "button", style: styles.btn(false), disabled: memBusy, onClick: () => { setMemSummaryEdit(sx.ownerId); setMemSummaryDraft(sx.text || ""); } }, "编辑"),
+                           h("button", { key: "regen", type: "button", style: styles.btn(false), disabled: memBusy, onClick: () => refreshSummary(sx.ownerId) }, "重新生成")])),
+                  memSummaryEdit === sx.ownerId
+                    ? h("textarea", { value: memSummaryDraft, onChange: (e) => setMemSummaryDraft(e.target.value), style: { width: "100%", minHeight: 120, marginTop: 6, fontSize: 13, fontFamily: "inherit", lineHeight: 1.6, padding: 8, borderRadius: 10, border: "1px solid rgba(0,0,0,0.1)", background: "#F5F5F7" } })
+                    : h("div", { style: { fontSize: 13, opacity: 0.85, marginTop: 4, whiteSpace: "pre-wrap" } }, sx.text || "（空）"))),
+            h("div", { style: styles.hint }, "摘要每轮都会带进她的上下文；模型自动生成，也可以手动改（改过的版本不会被自动刷新覆盖，点「重新生成」才会换掉）。"),
             h("div", { style: { marginTop: 8, textAlign: "right" } },
               h("button", { type: "button", style: styles.btn(true), disabled: memBusy, onClick: () => refreshAllSummaries() }, "重新生成全部"))),
           h(Card, { title: "本地完整保存（Markdown）" },

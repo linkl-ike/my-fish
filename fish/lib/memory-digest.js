@@ -45,6 +45,21 @@ export class MemoryDigest {
 
 	key(ownerId) { return `memory.digest.${ownerId}`; }
 
+	/** 手动保存摘要：用户手改的版本优先，自动刷新不再覆盖它（重新生成才会换掉）。 */
+	saveManual(ownerId, text) {
+		const t = String(text ?? '').trim().slice(0, 1200);
+		if (t.length < 10) return { ok: false, error: '摘要太短（至少 10 字）' };
+		try {
+			const active = Number(this.db.prepare("SELECT COUNT(*) AS n FROM memory WHERE character_id = 'feiyu' AND owner_id = ? AND status = 'active'").get(ownerId)?.n ?? 0);
+			const now = this.clock.now();
+			const dg = { text: t, at: now, count: active, version: 1, manual: true, manualAt: now };
+			setKv(this.db, this.key(ownerId), dg);
+			return { ok: true, ...dg };
+		} catch (error) {
+			return { ok: false, error: String(error instanceof Error ? error.message : error) };
+		}
+	}
+
 	/** 读某人的摘要（没有返回 null）。 */
 	get(ownerId) {
 		try {
@@ -55,6 +70,8 @@ export class MemoryDigest {
 
 	/** 摘要要不要重新生成：没有 / 太旧 / 新记忆够多 / 篇幅太短。 */
 	needsRefresh(ownerId, dg, cfg = this.cfg()) {
+		// 手动改过的摘要优先：自动刷新不再覆盖它（点「重新生成」才会换掉）
+		if (dg !== null && dg.manual === true) return false;
 		if (dg === null || String(dg.text ?? '').trim().length < 30) return true;
 		const age = this.clock.now() - Number(dg.at ?? 0);
 		if (age >= cfg.intervalHours * 3600_000) return true;
@@ -123,7 +140,7 @@ export class MemoryDigest {
 			const owners = this.db.prepare("SELECT DISTINCT owner_id FROM memory WHERE character_id = 'feiyu' AND status = 'active' AND owner_id <> 'self'").all();
 			return owners.map((r) => {
 				const dg = this.get(r.owner_id);
-				return { ownerId: r.owner_id, name: this.nameOf(r.owner_id), text: dg?.text ?? '', at: Number(dg?.at ?? 0), count: Number(dg?.count ?? 0) };
+				return { ownerId: r.owner_id, name: this.nameOf(r.owner_id), text: dg?.text ?? '', at: Number(dg?.at ?? 0), count: Number(dg?.count ?? 0), manual: dg?.manual === true };
 			});
 		} catch { return []; }
 	}
