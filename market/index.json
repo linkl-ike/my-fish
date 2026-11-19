@@ -87,16 +87,16 @@
         }
       },
       "dist-tags": {
-        "latest": "1.2.1"
+        "latest": "1.2.2"
       },
       "versions": [
         {
-          "version": "1.2.1",
-          "publishTimestamp": 1795078459,
+          "version": "1.2.2",
+          "publishTimestamp": 1795078804,
           "source": {
             "type": "git",
             "url": "https://github.com/linkl-ike/my-fish",
-            "commit": "7f9576ee616328a7b897f97561558487eb701ee0"
+            "commit": "18c66b2ef726274c56dd7011fe1e5bc6dfdde7f8"
           },
           "engines": {
             "dsh": ">=0.2.1"
