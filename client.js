@@ -1133,6 +1133,22 @@ window.__ModuleLoader__.load({
         } else { setBulkResult({ error: (r && r.error) || "批量失败" }); notify(`批量失败：${(r && r.error) || ""}`); }
       };
       // 画风多选（拼进提示词末尾）
+      // 画幅比例 × 分辨率（1K = 长边 1024，2K = 长边 2048）
+      const IMAGE_RATIOS = [["4:3", 4, 3], ["16:9", 16, 9], ["16:10", 16, 10], ["21:9", 21, 9]];
+      const ratioKeyOf = (w0, h0) => {
+        const w = Number(w0) || 1024; const h = Number(h0) || 768;
+        const r = w / h;
+        let best = IMAGE_RATIOS[0][0]; let bd = 1e9;
+        for (const [k, rw, rh] of IMAGE_RATIOS) { const d = Math.abs(r - rw / rh); if (d < bd) { bd = d; best = k; } }
+        return best;
+      };
+      const resOf = (w0, h0) => (Math.max(Number(w0) || 1024, Number(h0) || 768) >= 1536 ? "2k" : "1k");
+      const dimsFor = (key, res) => {
+        const rr = IMAGE_RATIOS.find((x) => x[0] === key) || IMAGE_RATIOS[0];
+        const long = res === "2k" ? 2048 : 1024;
+        if (rr[1] >= rr[2]) return [long, Math.round((long * rr[2] / rr[1]) / 8) * 8];
+        return [Math.round((long * rr[1] / rr[2]) / 8) * 8, long];
+      };
       const IMAGE_STYLES = ["插画", "写实", "二次元", "水彩", "油画", "电影感", "赛博朋克", "国风", "像素", "黑白"];
       const toggleStyle = async (st) => {
         const cur = ((imagegenS && imagegenS.styles) || []).slice();
@@ -1151,8 +1167,13 @@ window.__ModuleLoader__.load({
               h("span", { style: styles.dot(ig?.online === true) }),
               h("span", null, ig?.online ? `${(ig.info && ig.info.version) || ""} · ${(ig.info && ig.info.device) || ""}` : "未连接"),
               h("button", { type: "button", style: styles.btn(false), disabled: paintBusy, onClick: () => pingImagegen() }, "测试连接"))),
-            h(Row, { label: "模型" }, h("span", { style: styles.mono }, (ig && ig.unet) || "—")),
-            h(Row, { label: "尺寸" }, h(Select, { value: `${(ig && ig.width) || 1024}x${(ig && ig.height) || 1024}`, options: [["1024x1024", "1024×1024"], ["1328x1328", "1328×1328"], ["832x1216", "832×1216 竖"], ["1216x832", "1216×832 横"]], onChange: (v) => { const [w, hh] = v.split("x").map(Number); saveImagegen({ width: w, height: hh }); } })),
+            h(Row, { label: "图像模型" }, h("span", { style: styles.mono }, (ig && ig.unet) || "—")),
+            h(Row, { label: "文本编码器" }, (ig && ig.clips && ig.clips.length > 0)
+              ? h(Select, { value: (ig && ig.clip) || "", options: ig.clips.map((c) => [c, c.replace(/\.safetensors$/, "")]), onChange: (v) => saveImagegen({ clip: v }) })
+              : h("span", { style: styles.mono }, (ig && ig.clip) || "—")),
+            h(Row, { label: "尺寸" }, h("span", { style: { display: "flex", gap: 8 } },
+              h(Select, { value: ratioKeyOf(ig && ig.width, ig && ig.height), options: IMAGE_RATIOS.map(([k]) => [k, k]), onChange: (v) => { const d = dimsFor(v, resOf(ig && ig.width, ig && ig.height)); saveImagegen({ width: d[0], height: d[1] }); } }),
+              h(Select, { value: resOf(ig && ig.width, ig && ig.height), options: [["1k", "1K"], ["2k", "2K"]], onChange: (v) => { const d = dimsFor(ratioKeyOf(ig && ig.width, ig && ig.height), v); saveImagegen({ width: d[0], height: d[1] }); } }))),
             h(Row, { label: "步数" }, h(Num, { value: (ig && ig.steps) || 20, min: 4, max: 60, onChange: (v) => saveImagegen({ steps: v }) })),
             h(Row, { label: "自己画" }, h(Switch, { checked: (ig && ig.autoPaint) !== false, onChange: (v) => saveImagegen({ autoPaint: v }) })),
             h(Row, { label: "画风" }, h("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "flex-end" } },
@@ -1169,7 +1190,7 @@ window.__ModuleLoader__.load({
             h("div", { style: { display: "flex", gap: 8, marginTop: 10, justifyContent: "flex-end" } },
               h("button", { type: "button", style: styles.btn(true), disabled: paintBusy || !ig || ig.enabled !== true, onClick: () => paintNow() }, paintBusy ? "画着…（约 1 分钟）" : "生成")),
             paintResult ? h("div", { style: { marginTop: 12 } }, h("img", { src: paintResult, style: { maxWidth: "100%", borderRadius: 12 } })) : null,
-            h("div", { style: styles.hint }, "提示词建议 500~800 字；12GB 显存下 1024×1024 / 40 步约 1~2 分钟；画完会先审查，通过后才留下（开了「审查后发 QQ」会发到你的私聊）。")),
+            h("div", { style: styles.hint }, "提示词建议 500~800 字；1K 约 1~2 分钟，2K（长边 2048）会明显更慢（12GB 显存不推荐常用）；画完会先审查，通过后才留下（开了「审查后发 QQ」会发到你的私聊）。")),
           h(Card, { title: "画册" },
             gallery.length === 0
               ? h("div", { style: styles.hint }, "还没画过。等她画，或者上面点「生成」。")

@@ -60,7 +60,7 @@ export class ImageGen {
 			positivePrefix: String(c.positivePrefix ?? ''),
 			negative: String(c.negative ?? DEFAULT_NEG),
 			width: Math.round(num(c.width, 1024, 256, 2048) / 32) * 32,
-			height: Math.round(num(c.height, 1024, 256, 2048) / 32) * 32,
+			height: Math.round(num(c.height, 768, 256, 2048) / 32) * 32,
 			steps: Math.round(num(c.steps, 40, 4, 80)),
 			cfg: num(c.cfg, 4, 1, 20),
 			shift: num(c.shift, 3.1, 0.5, 10),
@@ -87,6 +87,17 @@ export class ImageGen {
 			this.lastPing = { at: Date.now(), ok: false, info: null };
 		}
 		return this.lastPing;
+	}
+
+	/** ComfyUI 当前可用的文本编码器列表（面板下拉用）。连不上就返回空。 */
+	async listClips() {
+		const cfg = this.cfg();
+		try {
+			const res = await this.fetch(`${cfg.baseURL}/object_info/CLIPLoader`, { signal: AbortSignal.timeout(5000) });
+			const j = await res.json();
+			const opts = j?.CLIPLoader?.input?.required?.clip_name?.[0];
+			return Array.isArray(opts) ? opts.map(String).filter(Boolean) : [];
+		} catch { return []; }
 	}
 
 	/** 把 Comfy Desktop 窗口藏起来（不关进程，画完她还要用）。失败无感。 */

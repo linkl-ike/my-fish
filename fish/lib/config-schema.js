@@ -130,7 +130,7 @@ export function fishSoulConfigSchema(z) {
 			positivePrefix: z.string().default(''),
 			negative: z.string().default(''),
 			width: z.number().default(1024),
-			height: z.number().default(1024),
+			height: z.number().default(768),
 			steps: z.number().default(40),
 			cfg: z.number().default(4),
 			shift: z.number().default(3.1),

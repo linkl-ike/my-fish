@@ -238,7 +238,9 @@ export async function handleSoulRoute({ method, path, url, req, res, send, readB
 	if (path === '/imagegen/state' && method === 'GET') {
 		const cfg = imageGen?.cfg() ?? {};
 		const ping = await (imageGen?.ping() ?? { ok: false, info: null });
-		send(200, { ok: true, enabled: cfg.enabled === true, online: ping.ok === true, info: ping.info, baseURL: cfg.baseURL ?? '', unet: cfg.unet ?? '', width: cfg.width ?? 1024, height: cfg.height ?? 1024, steps: cfg.steps ?? 40, styles: cfg.styles ?? [], review: cfg.review !== false, sendToMaster: cfg.sendToMaster === true, hideWindow: cfg.hideWindow !== false, promptMin: cfg.promptMin ?? 500, autoPaint: cfg.autoPaint !== false, autoPerDay: cfg.autoPerDay ?? 1, paintedToday: imageGen?.paintedToday?.() ?? 0, gallery: imageGen?.gallery?.() ?? [] });
+		let clips = [];
+		if (ping.ok && imageGen) { try { clips = await imageGen.listClips(); } catch { clips = []; } }
+		send(200, { ok: true, enabled: cfg.enabled === true, online: ping.ok === true, info: ping.info, baseURL: cfg.baseURL ?? '', unet: cfg.unet ?? '', clip: cfg.clip ?? '', clips, width: cfg.width ?? 1024, height: cfg.height ?? 768, steps: cfg.steps ?? 40, styles: cfg.styles ?? [], review: cfg.review !== false, sendToMaster: cfg.sendToMaster === true, hideWindow: cfg.hideWindow !== false, promptMin: cfg.promptMin ?? 500, autoPaint: cfg.autoPaint !== false, autoPerDay: cfg.autoPerDay ?? 1, paintedToday: imageGen?.paintedToday?.() ?? 0, gallery: imageGen?.gallery?.() ?? [] });
 		return true;
 	}
 	if (path === '/imagegen/config' && post) {
