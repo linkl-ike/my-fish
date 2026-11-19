@@ -131,6 +131,8 @@ export function fishSoulConfigSchema(z) {
 			transcriptMaxLines: z.number().default(40) // 一次最多给多少条原文（夹到 1~200）
 			,
 			// 记忆摘要：每轮进上下文的「长期记忆底色」（不依赖检索命中）；模型把最近记忆蒸馏成一段
+			// 记忆本地完整保存：自动 Markdown 快照（每分钟检查、>= 20 小时一份、留 keep 份）
+			export: z.object({ auto: z.boolean().default(true), keep: z.number().default(7) }).default({}),
 			digest: z.object({
 				enabled: z.boolean().default(true),
 				intervalHours: z.number().default(6),

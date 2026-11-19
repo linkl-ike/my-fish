@@ -12,6 +12,7 @@ import { platformOf } from './gateway.js';
 import { STAGES, PROFILE_FIELDS, stageBase, effectiveAffinity, getMood, mergeProfileFields, digestConfig } from './soul-memory.js';
 
 import { bulkMemory } from './memory-bulk.js';
+import { buildMarkdown, writeMarkdown, listMarkdown, importMarkdown, exportsDir } from './memory-export.js';
 import { dateCompact, isCalendarDate } from './time-util.js';
 
 const KINDS = ['fact', 'event', 'feeling', 'episode'];
@@ -197,6 +198,41 @@ export async function handleSoulRoute({ method, path, url, req, res, send, readB
 		return true;
 	}
 
+	// 记忆库本地完整保存：导出 Markdown（写文件 / 预览文本）、列出导出、从 Markdown 导回
+	if (path === '/memory/export/markdown' && method === 'GET') {
+		send(200, { ok: true, text: buildMarkdown({ db, now: clock.now() }) });
+		return true;
+	}
+	if (path === '/memory/export/markdown' && post) {
+		if (!guard()) return true;
+		try {
+			const b = await body().catch(() => ({}));
+			const ownerId = typeof b.ownerId === 'string' && b.ownerId !== '' ? b.ownerId : null;
+			const r2 = writeMarkdown({ db, now: clock.now(), ownerId });
+			send(200, { ok: true, ...r2, files: listMarkdown(), autoFiles: listMarkdown({ auto: true }) });
+		} catch (error) {
+			send(200, { ok: false, error: error instanceof Error ? error.message : String(error) });
+		}
+		return true;
+	}
+	if (path === '/memory/exports' && method === 'GET') {
+		send(200, { ok: true, dir: exportsDir(), files: listMarkdown(), autoFiles: listMarkdown({ auto: true }) });
+		return true;
+	}
+	if (path === '/memory/import/markdown' && post) {
+		if (!guard()) return true;
+		try {
+			const b = await body();
+			const text = String(b.text ?? '');
+			if (text.trim() === '') { send(200, { ok: false, error: '内容为空' }); return true; }
+			const ownerId = typeof b.ownerId === 'string' && b.ownerId !== '' ? b.ownerId : null;
+			const res = importMarkdown({ db, worker, text, now: clock.now(), ownerId });
+			send(200, { ok: true, ...res });
+		} catch (error) {
+			send(200, { ok: false, error: error instanceof Error ? error.message : String(error) });
+		}
+		return true;
+	}
 	if (path === '/memory/summary/state' && method === 'GET') {
 		send(200, { ok: true, items: memoryDigest?.list() ?? [] });
 		return true;

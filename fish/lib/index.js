@@ -62,6 +62,7 @@ import { GroupAdmin } from './qq-group-admin.js';
 import { GroupList, groupListPromptLine } from './group-list.js';
 import { tokenizeForBm25 } from './segment.js';
 import { MemoryDigest } from './memory-digest.js';
+import { startAutoSnapshot } from './memory-export.js';
 import { loadPersona, matchLore, applyMacros } from './persona.js';
 import { memoryLabel as labelMemory } from './memory-label.js';
 import { WorldBooks, loreConfig } from './worldinfo.js';
@@ -1227,6 +1228,9 @@ async function startup(ctx, config, { log, gate }) {
 	ctx.effect(() => () => historyImporter.cancel(), 'dsh-fish-soul: history import');
 
 	step(STARTUP_STEPS[14]);
+	// 记忆库每日 Markdown 快照（本地完整保存：exports/auto/，留最近 7 份）
+	ctx.effect(() => startAutoSnapshot({ db, clock, getConfig: () => currentConfig, log }));
+
 	registerRoutes(ctx, {
 		gate,
 		db, clock, embedder, embeddingCfg, worker, life, getConfig, saveConfig, log, gateway, channel, bili, biliClient, browser, biliSocial, douyinSocial,

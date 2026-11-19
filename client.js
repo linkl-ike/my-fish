@@ -427,6 +427,9 @@ window.__ModuleLoader__.load({
       const [bulkResult, setBulkResult] = React.useState(null);
       const [memStateS, setMemStateS] = React.useState(null);
       const [memSummaryS, setMemSummaryS] = React.useState(null);
+      const [memMdPreview, setMemMdPreview] = React.useState("");
+      const [memExports, setMemExports] = React.useState(null);
+      const [memImportText, setMemImportText] = React.useState("");
       const [selfTest, setSelfTest] = React.useState(null);
 
       const saveChannel = async (kind, body, msg) => {
@@ -947,6 +950,30 @@ window.__ModuleLoader__.load({
           if (ms && ms.ok === true) setMemSummaryS(ms.items || []);
         } finally { setMemBusy(false); }
       };
+      // 记忆 Markdown 导出 / 预览 / 导入：本地完整保存（文件在 ~/.dsh/fish-soul/exports/）
+      const exportMarkdown = async () => {
+        setMemBusy(true);
+        try {
+          const r = await postJson(`${FISH}/memory/export/markdown`, {});
+          notify(r && r.ok ? `已导出：${r.name}` : `导出失败：${(r && r.error) || ""}`);
+          if (r && r.ok) { const ms = await getJson(`${FISH}/memory/exports`); if (ms && ms.ok === true) setMemExports(ms); }
+        } finally { setMemBusy(false); }
+      };
+      const previewMarkdown = async () => {
+        if (memMdPreview !== "") { setMemMdPreview(""); return; }
+        const r = await getJson(`${FISH}/memory/export/markdown`);
+        if (r && r.ok === true) setMemMdPreview(r.text || ""); else notify("预览失败");
+      };
+      const doImportMarkdown = async () => {
+        const text = memImportText.trim();
+        if (text === "") { notify("先粘贴要导入的 Markdown 内容"); return; }
+        setMemBusy(true);
+        try {
+          const r = await postJson(`${FISH}/memory/import/markdown`, { text });
+          if (r && r.ok) { notify(`导入完成：新增 ${r.added} 条，跳过 ${r.skipped} 条`); setMemImportText(""); void load(); void loadMem(); }
+          else notify(`导入失败：${(r && r.error) || ""}`);
+        } finally { setMemBusy(false); }
+      };
       const refreshAllSummaries = async () => {
         const items = memSummaryS || [];
         if (items.length === 0) { notify("还没有可生成的摘要（先聊几轮）"); return; }
@@ -1056,6 +1083,26 @@ window.__ModuleLoader__.load({
             h("div", { style: styles.hint }, "摘要是模型把最近 60 条记忆蒸馏成的一段背景：每轮都带上，检索没命中时也有记忆底色。"),
             h("div", { style: { marginTop: 8, textAlign: "right" } },
               h("button", { type: "button", style: styles.btn(true), disabled: memBusy, onClick: () => refreshAllSummaries() }, "重新生成全部"))),
+          h(Card, { title: "本地完整保存（Markdown）" },
+            h("div", { style: styles.hint }, `导出目录：${(memExports && memExports.dir) || "~/.dsh/fish-soul/exports"}`),
+            h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end", marginTop: 8 } },
+              h("button", { type: "button", style: styles.btn(false), disabled: memBusy, onClick: () => previewMarkdown() }, memMdPreview ? "收起预览" : "预览 Markdown"),
+              h("button", { type: "button", style: styles.btn(true), disabled: memBusy, onClick: () => exportMarkdown() }, "导出到本机")),
+            memMdPreview
+              ? h("textarea", { value: memMdPreview, readOnly: true, style: { width: "100%", minHeight: 160, marginTop: 8, fontFamily: "monospace", fontSize: 12 } })
+              : null,
+            ((memExports && memExports.files) || []).length > 0
+              ? h("div", { style: { marginTop: 8 } },
+                  h("div", { style: { opacity: 0.6, fontSize: 12 } }, "最近导出："),
+                  ((memExports && memExports.files) || []).slice(0, 5).map((f) => h("div", { key: f.name, style: { fontSize: 12, padding: "2px 0" } }, `${f.name} · ${(f.bytes / 1024).toFixed(1)} KB`)),
+                  ((memExports && memExports.autoFiles) || []).length > 0
+                    ? h("div", { style: { opacity: 0.6, fontSize: 12, marginTop: 4 } }, `自动快照 ${memExports.autoFiles.length} 份（exports/auto/）`)
+                    : null)
+              : null,
+            h("div", { style: { display: "flex", gap: 8, marginTop: 10 } },
+              h(Text, { value: memImportText, onChange: setMemImportText, placeholder: "粘贴要导入的 Markdown（本插件导出的格式）", style: { flex: "1 1 auto" } }),
+              h("button", { type: "button", style: styles.btn(false), disabled: memBusy, onClick: () => doImportMarkdown() }, "导入")),
+            h("div", { style: styles.hint }, "导出后打开 ~/.dsh/fish-soul/exports/ 里的 .md 文件就能看；导入按「## 人名」分组还原，重复内容自动跳过。")),
           h(Card, { title: "新增一条记忆" },
             h(Row, { label: "内容" }, h(Text, { value: addContent, onChange: setAddContent, placeholder: "她该记住的事（≤500 字）" })),
             h(Row, { label: "类型" }, h(Select, { value: addKind, options: [["fact", "事实"], ["event", "事件"], ["feeling", "感受"], ["episode", "聊过的事"]], onChange: setAddKind })),
