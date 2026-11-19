@@ -1,15 +1,14 @@
-url: https://github.com/linkl-ike/my-fish
+﻿url: https://github.com/linkl-ike/my-fish
 
 name: linkl-ike/my-fish
 
 category: fun
 
 description:
-  en: 'A virtual fish companion for DeepSeek Harness: persona, per-person long-term memory, QQ/Bilibili/Douyin chat, voice, diary and backups, plus a 17-tab control panel.'
-  zh: '在 DSH 里养一条鱼：人格、按人长期记忆、QQ/B站/抖音聊天、语音、日记与备份，外加 17 个标签页的一体化面板。'
+  en: 'Runs a virtual fish companion inside DeepSeek Harness: persona, long-term memory (digest, audit, markdown export), QQ/Bilibili/Douyin chat, voice, diary and backups, plus AI painting via local ComfyUI and a 12-tab control panel.'
+  zh: '在 DSH 里养一条鱼：人格、长期记忆（摘要 / 体检 / Markdown 导出）、QQ/B站/抖音聊天、语音、日记与备份，外加本地 ComfyUI 画图和 12 个标签页的一体化面板。'
 
-# 可选：GitHub 托管的位图（png/jpg/webp，方形 180px 最佳；SVG 会被拒）
 icon: https://raw.githubusercontent.com/linkl-ike/my-fish/main/assets/icon-180.png
 
 # 可选：不发布 npm 时，用 GitHub Release 的预构建 tgz
-tarball: https://github.com/linkl-ike/my-fish/releases/download/v1.1.0/my-fish-1.1.0.tgz
+tarball: https://github.com/linkl-ike/my-fish/releases/download/v1.3.2/my-fish-1.3.2.tgz
