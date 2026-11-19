@@ -61,6 +61,7 @@ import { UpdateChecker, pluginVersion } from './update-check.js';
 import { GroupAdmin } from './qq-group-admin.js';
 import { GroupList, groupListPromptLine } from './group-list.js';
 import { tokenizeForBm25 } from './segment.js';
+import { MemoryDigest } from './memory-digest.js';
 import { loadPersona, matchLore, applyMacros } from './persona.js';
 import { memoryLabel as labelMemory } from './memory-label.js';
 import { WorldBooks, loreConfig } from './worldinfo.js';
@@ -627,6 +628,9 @@ async function startup(ctx, config, { log, gate }) {
 		.get(String(ownerId).replace(/^user:/, ''))?.display_name ?? '别人';
 	const memoryLabel = (m, now) => labelMemory(m, now, nameOf, capabilityStaleTag);
 
+	// 记忆摘要：每轮进上下文的长期背景（不依赖检索命中，长会话压缩后也不容易丢）
+	const memoryDigest = new MemoryDigest({ db, clock, callLlm, getConfig: () => currentConfig, log, nameOf });
+
 	function memoryLines(ownerId, query, vec, budget, used = null, { excludePrivate = false, skip = null } = {}) {
 		const out = [];
 		try {
@@ -748,6 +752,15 @@ async function startup(ctx, config, { log, gate }) {
 		}
 		// 关系 / 好感 / 情绪 / 印象（Dream 写的 / 主人改的）：比零散记忆更稳定的"她怎么看这个人"
 		const known = speakers.filter((s) => s.ownerId !== UNKNOWN_OWNER).slice(-3);
+		// 本轮说话人的长期记忆摘要：稳定背景（检索没命中也有底色），顺便按需异步刷新摘要
+		try {
+			const cur = known.length > 0 ? known[known.length - 1] : (speakers.length > 0 ? speakers[speakers.length - 1] : null);
+			if (cur !== null && cur.ownerId !== UNKNOWN_OWNER) {
+				const dg = memoryDigest.get(cur.ownerId);
+				if (dg !== null) lines.push(`[关于 ${cur.displayName} 的长期记忆摘要（只作背景，不用逐条复述）] ${String(dg.text).slice(0, 600)}`);
+				memoryDigest.maybeRefresh(cur.ownerId);
+			}
+		} catch { /* 摘要只是背景，出错不影响这一轮 */ }
 		for (const sp of known) lines.push(...personLines(sp, now, inGroup));
 		lines.push(...behaviorLines({ db, getConfig, session, known, tone: life.stateSnapshot().today.dailyMoodTone ?? '', now, diary, moods: persona.moods }));
 		// 最近聊过什么（聊完小结）：私聊看这个人的，群里看这个群的
@@ -1219,7 +1232,7 @@ async function startup(ctx, config, { log, gate }) {
 		db, clock, embedder, embeddingCfg, worker, life, getConfig, saveConfig, log, gateway, channel, bili, biliClient, browser, biliSocial, douyinSocial,
 		douyin, douyinHost, douyinBrowser, backup, historyImporter, updater, worldBooks,
 		llmRouter, voice, stickers, slang, persona, reloadPersona, webConfig, hasWebTools, webUsedToday, hostWebAvailable, hostWebState, runWebSearch,
-		journal, digester, diary, weekly, storage, chatArchive, diag, emotion,
+		journal, digester, diary, weekly, storage, chatArchive, diag, emotion, memoryDigest,
 		debugRecall: (o) => debugRecall({ db, clock, embedder, embeddingCfg: embeddingCfg(), config: retrievalCfg(), ...o })
 	});
 

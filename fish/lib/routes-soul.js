@@ -58,7 +58,7 @@ export function sourceLabel(src, channel = '') {
  * @returns {Promise<boolean>} 处理了就返回 true
  */
 export async function handleSoulRoute({ method, path, url, req, res, send, readBody, sameOrigin, deps }) {
-	const { db, clock, worker, life, gateway, backup, historyImporter, getConfig, saveConfig, journal, digester, weekly, storage, chatArchive, diag } = deps;
+	const { db, clock, worker, life, gateway, backup, historyImporter, getConfig, saveConfig, journal, digester, weekly, storage, chatArchive, diag, memoryDigest } = deps;
 	const post = method === 'POST';
 	const body = async () => {
 		const raw = await readBody(req);
@@ -197,6 +197,19 @@ export async function handleSoulRoute({ method, path, url, req, res, send, readB
 		return true;
 	}
 
+	if (path === '/memory/summary/state' && method === 'GET') {
+		send(200, { ok: true, items: memoryDigest?.list() ?? [] });
+		return true;
+	}
+	if (path === '/memory/summary/refresh' && post) {
+		if (!guard()) return true;
+		if (!memoryDigest) { send(200, { ok: false, error: '记忆摘要没起来' }); return true; }
+		const b = await body();
+		const ownerId = String(b.ownerId ?? '').trim();
+		if (ownerId === '') { send(200, { ok: false, error: '缺 ownerId' }); return true; }
+		send(200, await memoryDigest.refresh(ownerId));
+		return true;
+	}
 	if (path === '/memory/weekly/state' && method === 'GET') { send(200, weekly?.state() ?? { ok: false, error: '周记未启动' }); return true; }
 	if (path === '/memory/weekly/config' && post) {
 		if (!guard()) return true;

@@ -426,6 +426,7 @@ window.__ModuleLoader__.load({
       const [bulkValue, setBulkValue] = React.useState("3");
       const [bulkResult, setBulkResult] = React.useState(null);
       const [memStateS, setMemStateS] = React.useState(null);
+      const [memSummaryS, setMemSummaryS] = React.useState(null);
       const [selfTest, setSelfTest] = React.useState(null);
 
       const saveChannel = async (kind, body, msg) => {
@@ -936,6 +937,27 @@ window.__ModuleLoader__.load({
         } finally { setMemBusy(false); }
       };
       loadMemRef.current = loadMem;
+      // 长期记忆摘要：模型把最近记忆蒸馏成的一段背景；这里提供查看 / 手动重生成
+      const refreshSummary = async (ownerId) => {
+        setMemBusy(true);
+        try {
+          const r = await postJson(`${FISH}/memory/summary/refresh`, { ownerId });
+          notify(r && r.ok ? "摘要已更新" : `生成失败：${(r && r.error) || ""}`);
+          const ms = await getJson(`${FISH}/memory/summary/state`);
+          if (ms && ms.ok === true) setMemSummaryS(ms.items || []);
+        } finally { setMemBusy(false); }
+      };
+      const refreshAllSummaries = async () => {
+        const items = memSummaryS || [];
+        if (items.length === 0) { notify("还没有可生成的摘要（先聊几轮）"); return; }
+        setMemBusy(true);
+        try {
+          for (const it of items) await postJson(`${FISH}/memory/summary/refresh`, { ownerId: it.ownerId });
+          notify("全部摘要已重新生成");
+          const ms = await getJson(`${FISH}/memory/summary/state`);
+          if (ms && ms.ok === true) setMemSummaryS(ms.items || []);
+        } finally { setMemBusy(false); }
+      };
       const toggleSel = (id) => setMemSel((prev) => {
         const next = { ...prev };
         if (next[id]) delete next[id]; else next[id] = true;
@@ -1023,6 +1045,17 @@ window.__ModuleLoader__.load({
             h(Row, { label: "筛选结果" }, h("span", null, memData ? `${memData.matchedTotal ?? memRows.length} 条` : "—")),
             h("div", { style: { marginTop: 8, textAlign: "right" } },
               h("button", { type: "button", style: styles.btn(false), disabled: busy, onClick: exportMemories }, "导出全部记忆（JSON）"))),
+          h(Card, { title: "长期记忆摘要（每轮进她上下文）" },
+            (memSummaryS || []).length === 0
+              ? h("div", { style: styles.hint }, "还没生成（聊几轮后会自动生成；也可以点下面的按钮手动生成）")
+              : (memSummaryS || []).map((sx) => h("div", { key: sx.ownerId, style: { marginBottom: 10 } },
+                  h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 } },
+                    h("span", { style: { fontWeight: 600 } }, `${sx.name}${sx.at ? ` · ${fmtTime(sx.at)}` : ""}${sx.count ? ` · 基于 ${sx.count} 条` : ""}`),
+                    h("button", { type: "button", style: styles.btn(false), disabled: memBusy, onClick: () => refreshSummary(sx.ownerId) }, "重新生成")),
+                  h("div", { style: { fontSize: 13, opacity: 0.85, marginTop: 4, whiteSpace: "pre-wrap" } }, sx.text || "（空）"))),
+            h("div", { style: styles.hint }, "摘要是模型把最近 60 条记忆蒸馏成的一段背景：每轮都带上，检索没命中时也有记忆底色。"),
+            h("div", { style: { marginTop: 8, textAlign: "right" } },
+              h("button", { type: "button", style: styles.btn(true), disabled: memBusy, onClick: () => refreshAllSummaries() }, "重新生成全部"))),
           h(Card, { title: "新增一条记忆" },
             h(Row, { label: "内容" }, h(Text, { value: addContent, onChange: setAddContent, placeholder: "她该记住的事（≤500 字）" })),
             h(Row, { label: "类型" }, h(Select, { value: addKind, options: [["fact", "事实"], ["event", "事件"], ["feeling", "感受"], ["episode", "聊过的事"]], onChange: setAddKind })),
