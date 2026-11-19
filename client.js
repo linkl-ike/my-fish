@@ -74,44 +74,60 @@ window.__ModuleLoader__.load({
     }
 
     // ── 基础控件（自绘，跟随宿主主题色） ────────────────────────────
+    // 苹果风：系统字体、大留白、18px 圆角、柔和阴影、克制的蓝/绿/红
     const styles = {
-      page: { padding: "18px 20px", height: "100%", overflow: "auto", boxSizing: "border-box", fontSize: 13, lineHeight: 1.55 },
-      tabs: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14, borderBottom: "1px solid rgba(128,128,128,0.22)", paddingBottom: 8 },
+      page: {
+        padding: "26px 30px 44px", height: "100%", overflow: "auto", boxSizing: "border-box",
+        fontSize: 13.5, lineHeight: 1.62, color: "#1D1D1F", background: "#F5F5F7",
+        WebkitFontSmoothing: "antialiased", fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif",
+      },
+      tabs: { display: "flex", gap: 3, flexWrap: "wrap", marginBottom: 22, padding: 4, borderRadius: 14, background: "rgba(0,0,0,0.045)", width: "fit-content", maxWidth: "100%" },
       tab: (active) => ({
-        font: "inherit", fontSize: 13, padding: "4px 12px", borderRadius: 7, cursor: "pointer",
-        border: `1px solid ${active ? "rgba(80,140,255,0.65)" : "rgba(128,128,128,0.28)"}`,
-        background: active ? "rgba(80,140,255,0.12)" : "transparent", color: "inherit",
+        font: "inherit", fontSize: 13, fontWeight: active ? 600 : 500, padding: "7px 15px", borderRadius: 10, cursor: "pointer",
+        border: "none", background: active ? "#1D1D1F" : "transparent", color: active ? "#FFFFFF" : "#3A3A3C",
+        transition: "all .15s ease", letterSpacing: "0.1px",
       }),
-      grid: { display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-start" },
-      card: { border: "1px solid rgba(128,128,128,0.22)", borderRadius: 10, padding: "12px 14px", flex: "1 1 340px", minWidth: 280 },
-      title: { margin: "0 0 8px", fontSize: 13, fontWeight: 600 },
-      row: { display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderTop: "1px solid rgba(128,128,128,0.14)" },
-      label: { color: "inherit", opacity: 0.72, fontSize: 12, minWidth: 96 },
+      grid: { display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start" },
+      stack: { display: "flex", flexDirection: "column", gap: 16 },
+      card: {
+        background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.055)", borderRadius: 18, padding: "18px 20px",
+        flex: "1 1 340px", minWidth: 280, boxShadow: "0 1px 2px rgba(0,0,0,0.035), 0 6px 20px rgba(0,0,0,0.025)",
+      },
+      title: { margin: "0 0 12px", fontSize: 15, fontWeight: 600, letterSpacing: "0.1px", color: "#1D1D1F" },
+      row: { display: "flex", alignItems: "center", gap: 12, padding: "9px 0", borderTop: "1px solid rgba(0,0,0,0.05)" },
+      label: { color: "#6E6E73", fontSize: 12.5, minWidth: 96 },
       control: { flex: "1 1 auto", display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end", flexWrap: "wrap" },
-      input: { font: "inherit", fontSize: 13, padding: "3px 8px", borderRadius: 6, border: "1px solid rgba(128,128,128,0.4)", background: "transparent", color: "inherit", minWidth: 120 },
+      input: {
+        font: "inherit", fontSize: 13, padding: "6px 11px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.09)",
+        background: "rgba(0,0,0,0.03)", color: "inherit", minWidth: 120, outline: "none",
+      },
       num: { width: 64 },
       btn: (primary) => ({
-        font: "inherit", fontSize: 12, padding: "3px 12px", borderRadius: 7, cursor: "pointer",
-        border: `1px solid ${primary ? "rgba(80,140,255,0.7)" : "rgba(128,128,128,0.4)"}`,
-        background: primary ? "rgba(80,140,255,0.15)" : "transparent", color: "inherit",
+        font: "inherit", fontSize: 12.5, fontWeight: 500, padding: "6px 14px", borderRadius: 10, cursor: "pointer",
+        border: "1px solid transparent", transition: "all .15s ease",
+        background: primary ? "#0071E3" : "rgba(0,0,0,0.055)",
+        color: primary ? "#FFFFFF" : "#1D1D1F",
       }),
-      hint: { opacity: 0.6, fontSize: 12, marginTop: 6 },
-      dot: (ok) => ({ display: "inline-block", width: 8, height: 8, borderRadius: 999, marginRight: 6, background: ok ? "#2f9e6a" : "#d9534f" }),
-      mono: { fontFamily: "ui-monospace,Consolas,monospace", fontSize: 12, opacity: 0.9 },
-      toast: { position: "fixed", right: 22, bottom: 22, zIndex: 50, padding: "8px 14px", borderRadius: 9, border: "1px solid rgba(128,128,128,0.4)", background: "rgba(30,30,30,0.92)", color: "#fff", fontSize: 12 },
+      hint: { color: "#6E6E73", fontSize: 12, marginTop: 8 },
+      dot: (ok) => ({ display: "inline-block", width: 8, height: 8, borderRadius: 999, marginRight: 6, background: ok ? "#34C759" : "#FF3B30" }),
+      mono: { fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace", fontSize: 12, color: "#6E6E73" },
+      toast: {
+        position: "fixed", right: 26, bottom: 26, zIndex: 50, padding: "10px 17px", borderRadius: 13, fontSize: 12.5,
+        background: "rgba(29,29,31,0.92)", color: "#fff", boxShadow: "0 10px 34px rgba(0,0,0,0.22)", backdropFilter: "blur(18px)",
+      },
     };
 
     const Switch = ({ checked, onChange, disabled }) => h("button", {
       type: "button", role: "switch", "aria-checked": checked === true, disabled,
       onClick: () => onChange(!(checked === true)),
       style: {
-        width: 38, height: 20, borderRadius: 999, border: "1px solid rgba(128,128,128,0.45)", cursor: "pointer",
-        background: checked === true ? "rgba(47,158,106,0.75)" : "rgba(128,128,128,0.25)", position: "relative", padding: 0,
+        width: 40, height: 22, borderRadius: 999, border: "none", cursor: "pointer",
+        background: checked === true ? "#34C759" : "rgba(120,120,128,0.2)", position: "relative", padding: 0, transition: "background .18s ease",
       },
     }, h("span", {
       style: {
-        position: "absolute", top: 1, left: checked === true ? 19 : 2, width: 16, height: 16, borderRadius: 999,
-        background: "#fff", transition: "left .12s",
+        position: "absolute", top: 2, left: checked === true ? 21 : 3, width: 18, height: 18, borderRadius: 999,
+        background: "#fff", transition: "left .18s ease", boxShadow: "0 1px 3px rgba(0,0,0,0.22)",
       },
     }));
 
@@ -336,7 +352,7 @@ window.__ModuleLoader__.load({
       const [archiveErr, setArchiveErr] = React.useState("");
       const loadArchiveRef = React.useRef(null);
       React.useEffect(() => {
-        if (tab === "archive" && archiveS === null) void loadArchiveRef.current?.();
+        if (tab === "storage" && archiveS === null) void loadArchiveRef.current?.();
       }, [tab]);
 
       // ── v0.5：人物 / 检索 / 动态整理 ──
@@ -389,7 +405,7 @@ window.__ModuleLoader__.load({
       const [contactMsg, setContactMsg] = React.useState("");
       const loadContactsRef = React.useRef(null);
       React.useEffect(() => {
-        if (tab === "contact" && contacts === null) void loadContactsRef.current?.();
+        if (tab === "channels" && contacts === null) void loadContactsRef.current?.();
       }, [tab]);
       const [storQ, setStorQ] = React.useState("");
       const [storRes, setStorRes] = React.useState(null);
@@ -457,18 +473,18 @@ window.__ModuleLoader__.load({
 
       const TabBtn = (id, label) => h("button", { key: id, type: "button", style: styles.tab(tab === id), onClick: () => setTab(id) }, label);
 
-      const Header = () => h("div", { style: { display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 10 } },
-        h("h2", { style: { margin: 0, fontSize: 17, fontWeight: 650 } }, "my fish"),
-        h("span", { style: { opacity: 0.6, fontSize: 12 } }, warnings.length > 0 ? `${warnings.length} 项待处理` : "自检通过"),
+      const Header = () => h("div", { style: { display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 16 } },
+        h("h2", { style: { margin: 0, fontSize: 21, fontWeight: 700, letterSpacing: "-0.4px", color: "#1D1D1F" } }, "my fish"),
+        h("span", { style: { color: warnings.length > 0 ? "#FF9F0A" : "#248A3D", fontSize: 12.5, fontWeight: 500 } }, warnings.length > 0 ? `${warnings.length} 项待处理` : "自检通过"),
         h("span", { style: { marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" } },
-          h("span", { style: { opacity: 0.6, fontSize: 12 } }, `更新 ${new Date(host.at).toLocaleTimeString("zh-CN", { hour12: false })}`),
+          h("span", { style: { color: "#6E6E73", fontSize: 12 } }, `更新 ${new Date(host.at).toLocaleTimeString("zh-CN", { hour12: false })}`),
           h("button", { type: "button", style: styles.btn(false), onClick: () => load(), disabled: busy }, busy ? "…" : "刷新")));
 
       const WarningBar = () => (warnings.length > 0
-        ? h("div", { role: "status", style: { border: "1px solid rgba(217,83,79,0.5)", borderRadius: 10, padding: "9px 12px", marginBottom: 12, background: "rgba(217,83,79,0.08)" } },
+        ? h("div", { role: "status", style: { borderRadius: 14, padding: "11px 16px", marginBottom: 18, background: "rgba(255,59,48,0.07)", color: "#C0392B", fontSize: 12.5 } },
           h("strong", null, "需要注意"),
           h("ul", { style: { margin: "6px 0 0 18px", padding: 0 } }, warnings.map((w, i) => h("li", { key: i }, w))))
-        : h("div", { role: "status", style: { border: "1px solid rgba(47,158,106,0.45)", borderRadius: 10, padding: "9px 12px", marginBottom: 12, background: "rgba(47,158,106,0.08)" } },
+        : h("div", { role: "status", style: { borderRadius: 14, padding: "11px 16px", marginBottom: 18, background: "rgba(52,199,89,0.08)", color: "#248A3D", fontSize: 12.5 } },
           "自检通过：单一引擎在跑，SnowLuma 与语音桥都在线。"));
 
       // 心情（v1.1：PAD 情绪场，只影响语气）
@@ -2170,33 +2186,24 @@ window.__ModuleLoader__.load({
 
       // 路由
       const content = tab === "overview" ? Overview()
-        : tab === "channels" ? ChannelTab()
+        : tab === "channels" ? h("div", { style: styles.stack }, ChannelTab(), BehaviorTab(), ContactTab())
         : tab === "voice" ? VoiceTab()
-        : tab === "behavior" ? BehaviorTab()
-        : tab === "contact" ? ContactTab()
-        : tab === "memory" ? MemoryTab()
+        : tab === "memory" ? h("div", { style: styles.stack }, MemoryTab(), RetrievalTab(), DynamicsTab())
         : tab === "person" ? PersonTab()
         : tab === "emotion" ? EmotionTab()
-        : tab === "persona" ? PersonaTab()
+        : tab === "persona" ? h("div", { style: styles.stack }, PersonaTab(), WorldTab())
         : tab === "models" ? ModelsTab()
         : tab === "stickers" ? StickersTab()
-        : tab === "retrieval" ? RetrievalTab()
-        : tab === "logs" ? LogsTab()
-        : tab === "dynamics" ? DynamicsTab()
-        : tab === "world" ? WorldTab()
-        : tab === "storage" ? StorageTab()
-        : tab === "archive" ? ArchiveTab()
+        : tab === "storage" ? h("div", { style: styles.stack }, StorageTab(), ArchiveTab(), LogsTab())
         : ServiceTab();
 
       return h("div", { style: styles.page, className: "fp2-root" },
         Header(),
         h("div", { style: styles.tabs },
-          TabBtn("overview", "总览"), TabBtn("channels", "通道"), TabBtn("voice", "语音"),
-          TabBtn("behavior", "B站 / 抖音"), TabBtn("contact", "联系"), TabBtn("memory", "记忆"), TabBtn("person", "人物"),
-          TabBtn("emotion", "心情"), TabBtn("persona", "人格"), TabBtn("models", "模型 / 用量"), TabBtn("stickers", "表情 / 黑话"),
-          TabBtn("retrieval", "检索"), TabBtn("world", "世界书"), TabBtn("logs", "日志 / 备份"),
-          TabBtn("dynamics", "动态 / 整理"), TabBtn("storage", "存储 / 存档"),
-          TabBtn("archive", "归档浏览"), TabBtn("service", "服务 / 归档")),
+          TabBtn("overview", "总览"), TabBtn("channels", "通道与行为"), TabBtn("voice", "语音"),
+          TabBtn("memory", "记忆"), TabBtn("person", "人物"), TabBtn("emotion", "心情"),
+          TabBtn("persona", "人格设定"), TabBtn("models", "模型 / 用量"), TabBtn("stickers", "表情 / 黑话"),
+          TabBtn("storage", "存储备份"), TabBtn("service", "服务 / 关于")),
         content,
         toast ? h("div", { role: "status", style: styles.toast }, toast) : null);
     }
