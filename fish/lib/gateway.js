@@ -305,7 +305,17 @@ export class ChatGateway {
 	}
 
 	masterQq() {
-		return String(this.getConfig().masterQqUin ?? '');
+		const configured = String(this.getConfig().masterQqUin ?? '').trim();
+		if (/^\d{5,12}$/.test(configured)) return configured;
+		// 没配 masterQqUin 时，用人物表里主人已绑定的 QQ 号兜底（认人阶段写进去的）。
+		// 没有这条兜底：抖音主人 uid 匹配上了，却因为 masterQq() 是空而并不了会话 ——
+		// 表现就是「她在抖音里翻不到 QQ 的记忆/上下文，说被拦回来了」。
+		try {
+			const row = this.db.prepare("SELECT qq_uin FROM person WHERE canonical_id = 'master' AND deleted_at IS NULL").get();
+			const qq = String(row?.qq_uin ?? '').trim();
+			if (/^\d{5,12}$/.test(qq)) return qq;
+		} catch { /* 查不到就不合并，安全降级 */ }
+		return '';
 	}
 
 	biliConfig() {
