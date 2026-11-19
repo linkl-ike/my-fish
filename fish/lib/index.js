@@ -63,6 +63,7 @@ import { GroupList, groupListPromptLine } from './group-list.js';
 import { tokenizeForBm25 } from './segment.js';
 import { MemoryDigest } from './memory-digest.js';
 import { startAutoSnapshot } from './memory-export.js';
+import { ImageGen } from './imagegen.js';
 import { loadPersona, matchLore, applyMacros } from './persona.js';
 import { memoryLabel as labelMemory } from './memory-label.js';
 import { WorldBooks, loreConfig } from './worldinfo.js';
@@ -631,6 +632,9 @@ async function startup(ctx, config, { log, gate }) {
 
 	// 记忆摘要：每轮进上下文的长期背景（不依赖检索命中，长会话压缩后也不容易丢）
 	const memoryDigest = new MemoryDigest({ db, clock, callLlm, getConfig: () => currentConfig, log, nameOf });
+
+	// 画图：本机 ComfyUI（Qwen-Image），存本地画册
+	const imageGen = new ImageGen({ db, clock, getConfig: () => currentConfig, log });
 
 	function memoryLines(ownerId, query, vec, budget, used = null, { excludePrivate = false, skip = null } = {}) {
 		const out = [];
@@ -1228,6 +1232,38 @@ async function startup(ctx, config, { log, gate }) {
 	ctx.effect(() => () => historyImporter.cancel(), 'dsh-fish-soul: history import');
 
 	step(STARTUP_STEPS[14]);
+	// 画册：让她在自己想画的时候画一张（后台生成，不打扰聊天）
+	async function autoPaintOnce() {
+		try {
+			const cfg = imageGen.cfg();
+			if (!cfg.enabled || !cfg.autoPaint) return;
+			const now = clock.now();
+			const hour = new Date(now + 8 * 3600_000).getUTCHours();
+			if (hour < 8) return; // 深夜不画
+			const last = Number(getKv(db, 'imagegen.lastAuto', 0)) || 0;
+			if (Date.now() - last < 8 * 3600_000) return;
+			if (imageGen.paintedToday() >= cfg.autoPerDay) return;
+			const ping = await imageGen.ping();
+			if (!ping.ok) return;
+			const mood = String(emotion?.promptLine?.() ?? '');
+			const raw = await callLlm(`用一句话说出你现在想画什么（画面描述，10~30 字，只输出这句话，不要引号）。你现在的心情：${mood || '平静'}。`, { maxTokens: 60 }).catch(() => '');
+			const prompt = String(raw ?? '').trim().replace(/^["“]|["”]$/g, '').slice(0, cfg.maxPromptChars);
+			if (prompt === '') return;
+			const r = await imageGen.paint({ prompt, note: '自己想的' });
+			setKv(db, 'imagegen.lastAuto', Date.now());
+			log(r.ok ? 'info' : 'warn', `[fish-soul] 自己画了一张：${r.ok ? r.file : r.error}`);
+		} catch (error) {
+			log('warn', `[fish-soul] 自主画图出错：${String(error instanceof Error ? error.message : error)}`);
+		}
+	}
+	ctx.effect(() => {
+		const timer = setInterval(() => { void autoPaintOnce(); }, 20 * 60_000);
+		timer.unref?.();
+		const first = setTimeout(() => { void autoPaintOnce(); }, 90_000);
+		first.unref?.();
+		return () => { clearInterval(timer); clearTimeout(first); };
+	});
+
 	// 记忆库每日 Markdown 快照（本地完整保存：exports/auto/，留最近 7 份）
 	ctx.effect(() => startAutoSnapshot({ db, clock, getConfig: () => currentConfig, log }));
 
@@ -1236,7 +1272,7 @@ async function startup(ctx, config, { log, gate }) {
 		db, clock, embedder, embeddingCfg, worker, life, getConfig, saveConfig, log, gateway, channel, bili, biliClient, browser, biliSocial, douyinSocial,
 		douyin, douyinHost, douyinBrowser, backup, historyImporter, updater, worldBooks,
 		llmRouter, voice, stickers, slang, persona, reloadPersona, webConfig, hasWebTools, webUsedToday, hostWebAvailable, hostWebState, runWebSearch,
-		journal, digester, diary, weekly, storage, chatArchive, diag, emotion, memoryDigest,
+		journal, digester, diary, weekly, storage, chatArchive, diag, emotion, memoryDigest, imageGen,
 		debugRecall: (o) => debugRecall({ db, clock, embedder, embeddingCfg: embeddingCfg(), config: retrievalCfg(), ...o })
 	});
 
@@ -1576,6 +1612,24 @@ async function startup(ctx, config, { log, gate }) {
 				(r.status !== 'active' ? `，状态 ${r.status}` : '');
 		}
 	})), 'dsh-fish-soul: memory_read');
+
+	// ── 工具：画图（本机 ComfyUI / Qwen-Image；画完存画册）──
+	ctx.effect(() => ctx.tools.register(defineTool({
+		name: 'image_gen',
+		description: '画一张图（用主人的本机 ComfyUI / Qwen-Image）。给一句画面描述，画完存进画册，可以在面板「画册」里看。',
+		parameters: objectSchema({
+			prompt: { type: 'string', required: true, description: '画面描述（10~200 字，描述你想要的画面）' },
+			width: { type: 'number', description: '宽（默认 1024，可省）' },
+			height: { type: 'number', description: '高（默认 1024，可省）' }
+		}),
+		output: textOutput,
+		async execute(args) {
+			const cfg = imageGen.cfg();
+			if (!cfg.enabled) return '画图还没开（主人要先在「画册」页打开画图功能）。';
+			const r = await imageGen.paint({ prompt: String(args.prompt ?? ''), width: args.width, height: args.height, note: '对话里画的' });
+			return r.ok ? `画好了：${r.file}（${r.width}×${r.height}，已存进画册）` : `画失败了：${r.error}`;
+		}
+	})), 'dsh-fish-soul: image_gen');
 
 	// ── 工具：send_elsewhere（主人在 QQ 私聊里让她去抖音 / B站 私信自己一条）──
 	ctx.effect(() => ctx.tools.register(defineTool({

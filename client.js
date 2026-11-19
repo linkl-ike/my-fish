@@ -298,6 +298,12 @@ window.__ModuleLoader__.load({
         if (so2 && so2.ok !== false) setOutdatedS(so2);
         const ms2 = await getJson(`${FISH}/memory/state`);
         if (ms2 && ms2.ok !== false) setMemStateS(ms2);
+        const ms3 = await getJson(`${FISH}/memory/summary/state`);
+        if (ms3 && ms3.ok === true) setMemSummaryS(ms3.items || []);
+        const ms4 = await getJson(`${FISH}/memory/exports`);
+        if (ms4 && ms4.ok === true) setMemExports(ms4);
+        const ig0 = await getJson(`${FISH}/imagegen/state`);
+        if (ig0 && ig0.ok === true) setImagegenS(ig0);
         setBusy(false);
       }, []);
 
@@ -448,6 +454,10 @@ window.__ModuleLoader__.load({
       const [memImportText, setMemImportText] = React.useState("");
       const [memAudit, setMemAudit] = React.useState(null);
       const [changelogOpen, setChangelogOpen] = React.useState(false);
+      const [imagegenS, setImagegenS] = React.useState(null);
+      const [paintPrompt, setPaintPrompt] = React.useState("");
+      const [paintBusy, setPaintBusy] = React.useState(false);
+      const [paintResult, setPaintResult] = React.useState("");
       const [selfTest, setSelfTest] = React.useState(null);
 
       const saveChannel = async (kind, body, msg) => {
@@ -985,6 +995,30 @@ window.__ModuleLoader__.load({
           setMemAudit(null); void load(); void loadMem();
         } finally { setMemBusy(false); }
       };
+      // 画图（本机 ComfyUI / Qwen-Image）
+      const saveImagegen = async (patch) => {
+        const r = await postJson(`${FISH}/imagegen/config`, patch);
+        notify(r && r.ok ? "已保存" : "保存失败");
+        void load();
+      };
+      const pingImagegen = async () => {
+        setPaintBusy(true);
+        try {
+          const r = await postJson(`${FISH}/imagegen/ping`, {});
+          notify(r && r.ok ? `ComfyUI 在线：${(r.info && r.info.version) || ""}` : "连不上 ComfyUI（看看软件开没开）");
+          void load();
+        } finally { setPaintBusy(false); }
+      };
+      const paintNow = async () => {
+        const prompt = paintPrompt.trim();
+        if (prompt === "") { notify("先写一句画面描述"); return; }
+        setPaintBusy(true);
+        try {
+          const r = await postJson(`${FISH}/imagegen/paint`, { prompt });
+          if (r && r.ok) { notify(`画好了：${r.file}`); setPaintResult(`${FISH}/imagegen/image?file=${encodeURIComponent(r.file)}`); void load(); }
+          else notify(`画失败：${(r && r.error) || ""}`);
+        } finally { setPaintBusy(false); }
+      };
       // 记忆 Markdown 导出 / 预览 / 导入：本地完整保存（文件在 ~/.dsh/fish-soul/exports/）
       const exportMarkdown = async () => {
         setMemBusy(true);
@@ -1098,6 +1132,37 @@ window.__ModuleLoader__.load({
           if (!dryRun) { void load(); void loadMem(); }
         } else { setBulkResult({ error: (r && r.error) || "批量失败" }); notify(`批量失败：${(r && r.error) || ""}`); }
       };
+      // 画册：本机 ComfyUI（Qwen-Image）画图 + 画册
+      const ImageGenTab = () => {
+        const ig = imagegenS && imagegenS.ok !== false ? imagegenS : null;
+        const gallery = (ig && ig.gallery) || [];
+        return h("div", { style: styles.grid },
+          h(Card, { title: "画图（本机 ComfyUI）" },
+            h(Row, { label: "启用" }, h(Switch, { checked: ig?.enabled === true, onChange: (v) => saveImagegen({ enabled: v }) })),
+            h(Row, { label: "ComfyUI" }, h("span", { style: { display: "flex", alignItems: "center", gap: 8 } },
+              h("span", { style: styles.dot(ig?.online === true) }),
+              h("span", null, ig?.online ? `${(ig.info && ig.info.version) || ""} · ${(ig.info && ig.info.device) || ""}` : "未连接"),
+              h("button", { type: "button", style: styles.btn(false), disabled: paintBusy, onClick: () => pingImagegen() }, "测试连接"))),
+            h(Row, { label: "模型" }, h("span", { style: styles.mono }, (ig && ig.unet) || "—")),
+            h(Row, { label: "尺寸" }, h(Select, { value: `${(ig && ig.width) || 1024}x${(ig && ig.height) || 1024}`, options: [["1024x1024", "1024×1024"], ["1328x1328", "1328×1328"], ["832x1216", "832×1216 竖"], ["1216x832", "1216×832 横"]], onChange: (v) => { const [w, hh] = v.split("x").map(Number); saveImagegen({ width: w, height: hh }); } })),
+            h(Row, { label: "步数" }, h(Num, { value: (ig && ig.steps) || 20, min: 4, max: 60, onChange: (v) => saveImagegen({ steps: v }) })),
+            h(Row, { label: "自己画" }, h(Switch, { checked: (ig && ig.autoPaint) !== false, onChange: (v) => saveImagegen({ autoPaint: v }) })),
+            h("div", { style: styles.hint }, `今天自己画了 ${(ig && ig.paintedToday) || 0} / ${(ig && ig.autoPerDay) || 1} 张；空闲时她会自己想题目画一张（8 小时后可再画）。`)),
+          h(Card, { title: "画一张" },
+            h(Text, { value: paintPrompt, onChange: setPaintPrompt, placeholder: "画面描述，比如：一只橘猫在雨里等公交，治愈系插画" }),
+            h("div", { style: { display: "flex", gap: 8, marginTop: 10, justifyContent: "flex-end" } },
+              h("button", { type: "button", style: styles.btn(true), disabled: paintBusy || !ig || ig.enabled !== true, onClick: () => paintNow() }, paintBusy ? "画着…（约 1 分钟）" : "生成")),
+            paintResult ? h("div", { style: { marginTop: 12 } }, h("img", { src: paintResult, style: { maxWidth: "100%", borderRadius: 12 } })) : null,
+            h("div", { style: styles.hint }, "12GB 显存下 1024×1024 约 30~90 秒；图存在 ~/.dsh/fish-soul/gallery/。")),
+          h(Card, { title: "画册" },
+            gallery.length === 0
+              ? h("div", { style: styles.hint }, "还没画过。等她画，或者上面点「生成」。")
+              : h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10 } },
+                  gallery.slice(0, 24).map((g) => h("figure", { key: g.file, style: { margin: 0 } },
+                    h("img", { src: `${FISH}/imagegen/image?file=${encodeURIComponent(g.file)}`, style: { width: "100%", borderRadius: 10, display: "block" } }),
+                    h("figcaption", { style: { fontSize: 11, color: "#6E6E73", marginTop: 4, lineHeight: 1.4 } }, String(g.prompt || "").slice(0, 40)))))));
+      };
+
       const MemoryTab = () => h("div", null,
         h("div", { style: styles.grid },
           h(Card, { title: "记忆概览" },
@@ -2201,6 +2266,7 @@ window.__ModuleLoader__.load({
         : tab === "models" ? ModelsTab()
         : tab === "stickers" ? StickersTab()
         : tab === "storage" ? h("div", { style: styles.stack }, StorageTab(), ArchiveTab(), LogsTab())
+        : tab === "gallery" ? ImageGenTab()
         : ServiceTab();
 
       return h("div", { style: styles.page, className: "fp2-root" },
@@ -2209,7 +2275,7 @@ window.__ModuleLoader__.load({
           TabBtn("overview", "总览"), TabBtn("channels", "通道与行为"), TabBtn("voice", "语音"),
           TabBtn("memory", "记忆"), TabBtn("person", "人物"), TabBtn("emotion", "心情"),
           TabBtn("persona", "人格设定"), TabBtn("models", "模型 / 用量"), TabBtn("stickers", "表情 / 黑话"),
-          TabBtn("storage", "存储备份"), TabBtn("service", "服务 / 关于")),
+          TabBtn("storage", "存储备份"), TabBtn("gallery", "画册"), TabBtn("service", "服务 / 关于")),
         content,
         toast ? h("div", { role: "status", style: styles.toast }, toast) : null);
     }

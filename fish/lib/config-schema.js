@@ -119,6 +119,25 @@ export function fishSoulConfigSchema(z) {
 		//    （原来默认关 + 要显式列会话 = 这一层一直是空的，Dream 只能拿结论校验结论）。
 		// channels 留空 = **所有会话**都记；填了就只记这些。
 		chatArchive: z.object({ enabled: z.boolean().default(true), channels: z.array(z.string()).default([]), days: z.number().default(30) }).default({}),
+		// 画图：本机 ComfyUI（Qwen-Image 2.1）文生图；开关默认关，主人在面板打开
+		imagegen: z.object({
+			enabled: z.boolean().default(false),
+			baseURL: z.string().default('http://127.0.0.1:8188'),
+			unet: z.string().default('qwen_image_2.1_int8_convrot.safetensors'),
+			clip: z.string().default('qwen3.5_9b_qwen_image_2.1_pe_i2i.int8_convrot.safetensors'),
+			clipType: z.string().default('qwen_image'),
+			vae: z.string().default('qwen_image_2.1_vae_bf16.safetensors'),
+			positivePrefix: z.string().default(''),
+			negative: z.string().default(''),
+			width: z.number().default(1024),
+			height: z.number().default(1024),
+			steps: z.number().default(20),
+			cfg: z.number().default(4),
+			shift: z.number().default(3.1),
+			autoPaint: z.boolean().default(true),
+			autoPerDay: z.number().default(1),
+			maxPromptChars: z.number().default(300)
+		}).default({}),
 		memory: z.object({ // v0.8 聊完自动记：一段聊天空下来 idleMinutes 分钟（或攒够 maxLines 句）就整理一次
 			autoExtract: z.boolean().default(true),
 			weeklyAuto: z.boolean().default(false),

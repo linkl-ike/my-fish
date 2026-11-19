@@ -60,7 +60,7 @@ export function sourceLabel(src, channel = '') {
  * @returns {Promise<boolean>} 处理了就返回 true
  */
 export async function handleSoulRoute({ method, path, url, req, res, send, readBody, sameOrigin, deps }) {
-	const { db, clock, worker, life, gateway, backup, historyImporter, getConfig, saveConfig, journal, digester, weekly, storage, chatArchive, diag, memoryDigest } = deps;
+	const { db, clock, worker, life, gateway, backup, historyImporter, getConfig, saveConfig, journal, digester, weekly, storage, chatArchive, diag, memoryDigest, imageGen } = deps;
 	const post = method === 'POST';
 	const body = async () => {
 		const raw = await readBody(req);
@@ -232,6 +232,49 @@ export async function handleSoulRoute({ method, path, url, req, res, send, readB
 		} catch (error) {
 			send(200, { ok: false, error: error instanceof Error ? error.message : String(error) });
 		}
+		return true;
+	}
+	// ── 画图（本机 ComfyUI / Qwen-Image）──
+	if (path === '/imagegen/state' && method === 'GET') {
+		const cfg = imageGen?.cfg() ?? {};
+		const ping = await (imageGen?.ping() ?? { ok: false, info: null });
+		send(200, { ok: true, enabled: cfg.enabled === true, online: ping.ok === true, info: ping.info, baseURL: cfg.baseURL ?? '', unet: cfg.unet ?? '', width: cfg.width ?? 1024, height: cfg.height ?? 1024, steps: cfg.steps ?? 20, autoPaint: cfg.autoPaint !== false, autoPerDay: cfg.autoPerDay ?? 1, paintedToday: imageGen?.paintedToday?.() ?? 0, gallery: imageGen?.gallery?.() ?? [] });
+		return true;
+	}
+	if (path === '/imagegen/config' && post) {
+		if (!guard()) return true;
+		const b = await body();
+		const s = {};
+		if (b.enabled !== undefined) s.enabled = b.enabled === true;
+		for (const k of ['baseURL', 'unet', 'clip', 'clipType', 'vae', 'positivePrefix', 'negative']) if (typeof b[k] === 'string') s[k] = String(b[k]).slice(0, 400);
+		for (const k of ['width', 'height', 'steps', 'cfg', 'shift', 'autoPerDay', 'maxPromptChars']) if (b[k] !== undefined && Number.isFinite(Number(b[k]))) s[k] = Number(b[k]);
+		if (b.autoPaint !== undefined) s.autoPaint = b.autoPaint === true;
+		saveConfig({ imagegen: s });
+		send(200, { ok: true });
+		return true;
+	}
+	if (path === '/imagegen/ping' && post) {
+		if (!guard()) return true;
+		send(200, { ok: true, ...(await (imageGen?.ping(true) ?? { ok: false })) });
+		return true;
+	}
+	if (path === '/imagegen/paint' && post) {
+		if (!guard()) return true;
+		if (!imageGen) { send(200, { ok: false, error: '画图没起来' }); return true; }
+		const b = await body();
+		const r2 = await imageGen.paint({ prompt: String(b.prompt ?? ''), width: b.width, height: b.height, steps: b.steps, remember: true, note: String(b.note ?? '面板里画的') });
+		send(200, { ok: r2.ok, file: r2.file, bytes: r2.bytes, width: r2.width, height: r2.height, error: r2.error });
+		return true;
+	}
+	if (path === '/imagegen/gallery' && method === 'GET') {
+		send(200, { ok: true, items: imageGen?.gallery?.() ?? [] });
+		return true;
+	}
+	if (path === '/imagegen/image' && method === 'GET') {
+		const hit = imageGen?.read?.(url.searchParams.get('file'));
+		if (!hit) { send(404, { ok: false, error: 'not found' }); return true; }
+		res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'private, max-age=3600' });
+		res.end(hit.bytes);
 		return true;
 	}
 	// 记忆体检：重复 / 近似重复 / 过时 / 找不到主人，可一键归档
