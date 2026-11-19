@@ -30,6 +30,9 @@ powershell -ExecutionPolicy Bypass -File tools/check-env.ps1
 > 3. 搜索 `my fish` 或 `fish` 即可看到
 >
 > 索引源不需要是官方源：DSH 的市场本身不内置任何索引，这里只是提供一个可访问的 format-1 索引文件。
+>
+> **想让别人也搜到？** 社区插件索引（awesome-dsh-plugin，收录 6000+ 插件）是大多数人会添加的源：
+> `https://awesome-dsh-plugin.com/index.json` —— 本插件已向它提交收录 PR（合并后，凡添加了这个社区索引的人都能在「发现」里搜到 `my fish`）。
 
 
 ### 从 GitHub 直接安装（DSH CLI）
