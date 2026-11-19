@@ -41,10 +41,10 @@ powershell -ExecutionPolicy Bypass -File tools/check-env.ps1
 dsh plugin --profile <你的 profile> add git+https://github.com/linkl-ike/my-fish.git#<commit>
 ```
 
-也可以下载 Release 里的 `my-fish-1.3.4.tgz`；每个 Release 还附带 `my-fish-<版本>-env-and-guide.zip`（环境清单 + 安装指南 + 一键自检脚本），Release 说明里直接写了环境要求和安装步骤：
+也可以下载 Release 里的 `my-fish-1.3.5.tgz`；每个 Release 还附带 `my-fish-<版本>-env-and-guide.zip`（环境清单 + 安装指南 + 一键自检脚本），Release 说明里直接写了环境要求和安装步骤：
 
 ```sh
-dsh plugin --profile <你的 profile> add https://github.com/linkl-ike/my-fish/releases/download/v1.3.4/my-fish-1.3.4.tgz
+dsh plugin --profile <你的 profile> add https://github.com/linkl-ike/my-fish/releases/download/v1.3.5/my-fish-1.3.5.tgz
 ```
 
 ### 服务 / 归档 → 更新日志
@@ -106,7 +106,7 @@ INSTALL.md / PUBLISH-GITHUB.md / LICENSE / THIRD-PARTY-NOTICES.md
 
 ## 版本
 
-- 插件：**1.3.4**
+- 插件：**1.3.5**
 - 内嵌引擎：fish-core 0.18.5-local.16
 
 ## 发布到插件市场

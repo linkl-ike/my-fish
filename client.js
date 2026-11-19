@@ -1134,7 +1134,7 @@ window.__ModuleLoader__.load({
       };
       // 画风多选（拼进提示词末尾）
       // 画幅比例 × 分辨率（1K = 长边 1024，2K = 长边 2048）
-      const IMAGE_RATIOS = [["4:3", 4, 3], ["16:9", 16, 9], ["16:10", 16, 10], ["21:9", 21, 9]];
+      const IMAGE_RATIOS = [["4:3", 4, 3], ["3:4", 3, 4], ["16:9", 16, 9], ["16:10", 16, 10], ["21:9", 21, 9]];
       const ratioKeyOf = (w0, h0) => {
         const w = Number(w0) || 1024; const h = Number(h0) || 768;
         const r = w / h;
