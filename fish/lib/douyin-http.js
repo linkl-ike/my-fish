@@ -322,18 +322,19 @@ export class DouyinHttp {
 	}
 
 	/** 单个视频详情（要 a_bogus 的端点用 aBogus: true）。 */
-	async detail(awemeId) {
-		const r = await this.request({ path: '/aweme/v1/web/aweme/detail/', params: [['aweme_id', String(awemeId)]] });
+	async detail(awemeId, { timeoutMs = 20_000 } = {}) {
+		const r = await this.request({ path: '/aweme/v1/web/aweme/detail/', params: [['aweme_id', String(awemeId)]], timeoutMs });
 		const d = r.json?.aweme_detail ?? r.json?.data?.aweme_detail ?? null;
 		return { ok: r.ok && d !== null, detail: d, raw: r };
 	}
 
 	/** 评论列表（**要 a_bogus**，否则返回 0 字节）。 */
-	async comments(awemeId, { cursor = '0', count = 20 } = {}) {
+	async comments(awemeId, { cursor = '0', count = 20, timeoutMs = 20_000 } = {}) {
 		const r = await this.request({
 			path: '/aweme/v1/web/comment/list/',
 			params: [['aweme_id', String(awemeId)], ['cursor', String(cursor)], ['count', String(count)], ['item_type', '0'], ['insert_ids', '']],
 			aBogus: true,
+			timeoutMs,
 		});
 		const list = r.json?.comments ?? r.json?.data?.comments ?? [];
 		return { ok: r.ok && Array.isArray(list) && list.length > 0, list, raw: r };

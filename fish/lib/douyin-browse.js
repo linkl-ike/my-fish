@@ -22,6 +22,8 @@ const FEED_URL = 'https://www.douyin.com/?recommend=1';
 const VIDEO_RE = /(?:douyin\.com\/(?:video|note)\/|iesdouyin\.com\/share\/(?:video|note)\/|[?&](?:modal_id|aweme_id|vid)=)(\d{15,20})/g;
 const SHORT_RE = /https?:\/\/v\.douyin\.com\/[0-9A-Za-z_-]+\/?/g;
 const DESCRIBE_TTL_MS = 3600_000;
+const PARTIAL_TTL_MS = 5 * 60_000; // 只读到作者（没标题/热评）的缓存别留一小时，5 分钟后重试
+const HTTP_RETRY_MS = 10 * 60_000; // httpBroken 只是提示，10 分钟后再试一次纯 HTTP
 const DAY_MS = 86_400_000;
 const MOBILE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 
@@ -123,7 +125,8 @@ export class DouyinBrowser {
 		this.fetch = fetchImpl ?? ((...a) => fetch(...a));
 		this.http = http ?? null; // 纯 HTTP 客户端（http 模式用；没有就退回浏览器）
 		this.running = false;
-		this.httpBroken = false; // 这轮试过纯 HTTP 不行 → 退回浏览器
+		this.httpBroken = false; // 最近一次确认纯 HTTP 不行 → 暂时退回浏览器（会过期重试）
+		this.httpBrokenAt = 0;
 		this.described = new Map();
 		this.tm = { evalTimeoutMs: 12_000, nextBudgetMs: 30_000, ...timing }; // 页面卡死时不能挂死或霸住浏览器锁
 	}
@@ -203,7 +206,8 @@ export class DouyinBrowser {
 	/** 走纯 HTTP 还是走浏览器。默认 http；没有 http 客户端、或这轮试过不行，就退回浏览器。 */
 	useHttp() {
 		if (this.http === null) return false;
-		if (this.httpBroken === true) return false;
+		// httpBroken 只是「最近一次不太行」的提示：10 分钟后自动再试，不能把 HTTP 一直判死
+		if (this.httpBroken === true && Date.now() - this.httpBrokenAt < HTTP_RETRY_MS) return false;
 		const mode = this.getConfig()?.browse?.mode;
 		return mode !== 'browser';
 	}
@@ -597,6 +601,7 @@ export class DouyinBrowser {
 			const ok = await this.http.ensureCookies();
 			if (!ok || !this.http.isLoggedIn()) {
 				this.httpBroken = true;
+				this.httpBrokenAt = Date.now();
 				this.log('warn', `[fish-soul] 抖音纯 HTTP 没拿到登录态（${this.http.lastError || '未登录'}），这轮退回浏览器`);
 			} else {
 				this.httpBroken = false;
@@ -660,8 +665,9 @@ export class DouyinBrowser {
 
 	/** 聊天里有人发了抖音视频：打开详情读文案和热评，拼一段简短介绍进消息，让她"看过"再回。 */
 	async describe(refs, { max = 1 } = {}) {
-		// http 模式不卡 ready：没有 cookie 就退回浏览器那条路（浏览器没在跑就自然读不到）
-		if (!this.ready && !(this.useHttp() && this.host.running)) return [];
+		// 这里只看「模式允不允许 HTTP」，不看 httpBroken：刷视频那轮的临时判断不该把分享视频也一起判死
+		const httpUsable = this.http !== null && this.getConfig()?.browse?.mode !== 'browser';
+		if (!this.ready && !(httpUsable && this.host.running)) return [];
 		const ids = [...(refs.ids ?? [])];
 		for (const s of refs.shorts ?? []) {
 			if (ids.length >= max) break;
@@ -671,37 +677,43 @@ export class DouyinBrowser {
 		const notes = [];
 		for (const id of ids.slice(0, max)) {
 			const hit = this.described.get(id);
-			if (hit !== undefined && Date.now() - hit.at < DESCRIBE_TTL_MS) { notes.push(hit.text); continue; }
+			const ttl = hit?.partial === true ? PARTIAL_TTL_MS : DESCRIBE_TTL_MS;
+			if (hit !== undefined && Date.now() - hit.at < ttl) { notes.push(hit.text); continue; }
 			// http 模式：详情 + 热评都走接口（comment/list 要 a_bogus）；读不到再退回浏览器
-			if (this.useHttp()) {
+			if (httpUsable) {
 				const text = await this.httpDescribe(id);
 				if (text !== null) {
-					this.described.set(id, { text, at: Date.now() });
+					const partial = !text.includes('；热评：');
+					this.described.set(id, { text, at: Date.now(), partial });
 					if (this.described.size > 200) this.described.delete(this.described.keys().next().value);
 					notes.push(text);
 					continue;
 				}
+				this.log('warn', `[fish-soul] 抖音分享视频 ${id} 走 HTTP 没读到详情（${this.http.lastError || '未知'}），改用浏览器兜底`);
 			}
 			try {
 				const d = await this.host.exclusive('看分享的抖音', () => this.readDetail({ browser: this.host.browser, id, commentLimit: 3 }), { maxMs: 45_000 });
-				if (!d?.ok) continue;
+				if (!d?.ok) { this.log('warn', `[fish-soul] 抖音分享视频 ${id} 浏览器也没读到（${d?.error ?? '没返回'}）`); continue; }
 				const c0 = d.comments?.[0];
 				const text = `【抖音视频：${oneLine(d.desc, 120) || '（没有文案）'}；作者 ${oneLine(d.author, 20) || '未知'}` +
 					(c0 ? `；热评：${oneLine(c0.text ?? c0, 60)}` : '') + '】';
-				this.described.set(id, { text, at: Date.now() });
+				this.described.set(id, { text, at: Date.now(), partial: c0 === undefined });
 				if (this.described.size > 200) this.described.delete(this.described.keys().next().value);
 				notes.push(text);
-			} catch { /* 这条看不了 */ }
+			} catch (error) {
+				this.log('warn', `[fish-soul] 抖音分享视频 ${id} 读取失败：${errText(error)}`);
+			}
 		}
 		return notes;
 	}
 
 	/** 纯 HTTP 拼一段视频介绍（详情 + 第一条热评）。读不到返回 null。 */
 	async httpDescribe(id) {
-		const det = await this.http.detail(id);
+		// 分享视频是等消息用的：HTTP 每条快超时（8s）快速失败，别把 30/45s 的外层预算耗光
+		const det = await this.http.detail(id, { timeoutMs: 8_000 });
 		if (!det.ok || det.detail === null) return null;
 		const d = det.detail;
-		const cm = await this.http.comments(id, { count: 3 });
+		const cm = await this.http.comments(id, { count: 3, timeoutMs: 8_000 });
 		const c0 = cm.ok ? cm.list[0] : null;
 		return `【抖音视频：${oneLine(d.desc, 120) || '（没有文案）'}；作者 ${oneLine(d.author?.nickname, 20) || '未知'}` +
 			(c0 ? `；热评：${oneLine(c0.text ?? c0, 60)}` : '') + '】';

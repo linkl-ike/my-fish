@@ -377,8 +377,8 @@ export const mediaMethods = {
 		}
 		if (this.douyinBrowser !== null && this.douyinConfig().enabled) {
 			const refs = findDouyinRefs(text);
-			// 抖音得真的打开视频页（十几秒），最多等 30 秒
-			if (refs.ids.length > 0 || refs.shorts.length > 0) jobs.push(this.withTimeout(this.douyinBrowser.describe(refs), 30_000));
+			// 抖音得真的打开视频页（十几秒），HTTP 读不到还要浏览器兜底：最多等 45 秒
+			if (refs.ids.length > 0 || refs.shorts.length > 0) jobs.push(this.withTimeout(this.douyinBrowser.describe(refs), 45_000));
 		}
 		if (jobs.length === 0) return [];
 		const notes = (await Promise.all(jobs)).flat();
