@@ -447,6 +447,7 @@ window.__ModuleLoader__.load({
       const [memExports, setMemExports] = React.useState(null);
       const [memImportText, setMemImportText] = React.useState("");
       const [memAudit, setMemAudit] = React.useState(null);
+      const [changelogOpen, setChangelogOpen] = React.useState(false);
       const [selfTest, setSelfTest] = React.useState(null);
 
       const saveChannel = async (kind, body, msg) => {
@@ -2155,9 +2156,14 @@ window.__ModuleLoader__.load({
                       h("div", { style: styles.hint }, "版本号来自插件 package.json；更新来自 GitHub Releases（检查结果缓存 10 分钟）。")),
           h(Card, { title: "更新日志" },
             Array.isArray(host?.changelog) && host.changelog.length > 0
-              ? host.changelog.map((entry, idx) => h("div", { key: idx, style: { padding: "6px 0", borderTop: "1px solid rgba(128,128,128,0.12)" } },
-                  h("div", { style: { fontWeight: 600, marginBottom: 2 } }, `v${entry.version || "?"}${entry.date ? ` · ${entry.date}` : ""}`),
-                  (Array.isArray(entry.items) ? entry.items : []).map((item, i) => h("div", { key: i, style: { ...styles.hint, paddingLeft: 10, lineHeight: 1.7 } }, `• ${item}`))))
+              ? h("div", null,
+                  (changelogOpen ? host.changelog : host.changelog.slice(0, 3)).map((entry, idx) => h("div", { key: idx, style: { padding: "7px 0", borderTop: "1px solid rgba(0,0,0,0.05)" } },
+                    h("div", { style: { fontWeight: 600, marginBottom: 2 } }, `v${entry.version || "?"}${entry.date ? ` · ${entry.date}` : ""}`),
+                    (Array.isArray(entry.items) ? entry.items : []).map((item, i) => h("div", { key: i, style: { ...styles.hint, paddingLeft: 10, lineHeight: 1.7 } }, `— ${item}`)))),
+                  host.changelog.length > 3
+                    ? h("div", { style: { textAlign: "center", marginTop: 10 } },
+                        h("button", { type: "button", style: styles.btn(false), onClick: () => setChangelogOpen((v) => !v) }, changelogOpen ? "收起" : `展开全部（共 ${host.changelog.length} 条）`))
+                    : null)
               : h("div", { style: styles.hint }, "暂无更新日志")),
           h(Card, { title: "SurfCore 归档" },
             h(Row, { label: "记忆卡" }, h("span", null, sc.archive ? `${sc.archive.cardRecords} 条（QQ ${sc.archive.cardByScope?.qq ?? 0} / B站 ${sc.archive.cardByScope?.bili ?? 0}）` : "—")),
