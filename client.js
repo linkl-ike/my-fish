@@ -1184,13 +1184,13 @@ window.__ModuleLoader__.load({
             h(Row, { label: "画完审查" }, h(Switch, { checked: (ig && ig.review) !== false, onChange: (v) => saveImagegen({ review: v }) })),
             h(Row, { label: "审查后发 QQ" }, h(Switch, { checked: (ig && ig.sendToMaster) === true, onChange: (v) => saveImagegen({ sendToMaster: v }) })),
             h(Row, { label: "藏 Comfy 窗口" }, h(Switch, { checked: (ig && ig.hideWindow) !== false, onChange: (v) => saveImagegen({ hideWindow: v }) })),
-            h("div", { style: styles.hint }, `提示词 500~800 字 · 画完先审查 · 今天自己画了 ${(ig && ig.paintedToday) || 0} / ${(ig && ig.autoPerDay) || 1} 张；空闲时她会自己想题目画一张（8 小时后可再画）。`)),
+            h("div", { style: styles.hint }, `提示词 800~1200 字 · 画完先审查 · 今天自己画了 ${(ig && ig.paintedToday) || 0} / ${(ig && ig.autoPerDay) || 1} 张；空闲时她会自己想题目画一张（8 小时后可再画）。`)),
           h(Card, { title: "画一张" },
             h(Area, { value: paintPrompt, onChange: setPaintPrompt, placeholder: "画面描述（300~800 字）：主体在做什么、场景、构图视角、光线、色彩、风格（插画/写实/电影感）、氛围、细节——写得越具体越不跑偏", style: { width: "100%", minHeight: 130 } }),
             h("div", { style: { display: "flex", gap: 8, marginTop: 10, justifyContent: "flex-end" } },
               h("button", { type: "button", style: styles.btn(true), disabled: paintBusy || !ig || ig.enabled !== true, onClick: () => paintNow() }, paintBusy ? "画着…（约 1 分钟）" : "生成")),
             paintResult ? h("div", { style: { marginTop: 12 } }, h("img", { src: paintResult, style: { maxWidth: "100%", borderRadius: 12 } })) : null,
-            h("div", { style: styles.hint }, "提示词建议 500~800 字；1K 约 1~2 分钟，2K（长边 2048）会明显更慢（12GB 显存不推荐常用）；画完会先审查，通过后才留下（开了「审查后发 QQ」会发到你的私聊）。")),
+            h("div", { style: styles.hint }, "提示词建议 800~1200 字；1K 约 1~2 分钟，2K（长边 2048）会明显更慢（12GB 显存不推荐常用）；画完会先审查，通过后才留下（开了「审查后发 QQ」会发到你的私聊）。")),
           h(Card, { title: "画册" },
             gallery.length === 0
               ? h("div", { style: styles.hint }, "还没画过。等她画，或者上面点「生成」。")

@@ -68,10 +68,10 @@ export class ImageGen {
 			review: c.review !== false,
 			sendToMaster: c.sendToMaster === true,
 			hideWindow: c.hideWindow !== false,
-			promptMin: Math.round(num(c.promptMin, 500, 100, 5000)),
+			promptMin: Math.round(num(c.promptMin, 800, 100, 5000)),
 			autoPaint: c.autoPaint !== false,
 			autoPerDay: Math.round(num(c.autoPerDay, 1, 0, 6)),
-			maxPromptChars: Math.round(num(c.maxPromptChars, 1200, 100, 3000))
+			maxPromptChars: Math.round(num(c.maxPromptChars, 1500, 100, 3000))
 		};
 	}
 

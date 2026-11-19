@@ -136,8 +136,8 @@ export function fishSoulConfigSchema(z) {
 			shift: z.number().default(3.1),
 			autoPaint: z.boolean().default(true),
 			autoPerDay: z.number().default(1),
-			maxPromptChars: z.number().default(1200),
-			promptMin: z.number().default(500), // 提示词最少字数（工具/自主画图按这个要求）
+			maxPromptChars: z.number().default(1500),
+			promptMin: z.number().default(800), // 提示词最少字数（工具/自主画图按这个要求）
 			styles: z.array(z.string()).default([]), // 画风多选（插画 / 写实 / 二次元…）
 			review: z.boolean().default(true), // 画完先审查再留下
 			sendToMaster: z.boolean().default(true), // 审查通过后发到主人 QQ 私聊（默认开）
