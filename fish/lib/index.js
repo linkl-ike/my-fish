@@ -1107,6 +1107,8 @@ async function startup(ctx, config, { log, gate }) {
 		// 每个自家会话建/恢复好后，把人格卡 + 此刻状态挂到它的 agent 上（不注册全局段，别的会话看不见）
 		agentSections: (agentCtx) => registerAgentSections(agentCtx, { personaText: () => persona.staticText, buildContextBlock, log }),
 		diag,
+		// 画完已主动发过的图：模型回复里再贴同一条路径时跳过（防发两次）
+		recentPaintSent: (p) => imageGen?.wasSentRecently?.(p) === true,
 		soul: {
 			beginTurn,
 			nowLabel,
@@ -1640,7 +1642,7 @@ async function startup(ctx, config, { log, gate }) {
 			const cfg = imageGen.cfg();
 			if (!cfg.enabled) return '画图还没开（主人要先在「画册」页打开画图功能）。';
 			const r = await imageGen.paint({ prompt: String(args.prompt ?? ''), width: args.width, height: args.height, note: '对话里画的' });
-			return r.ok ? `画好了：${r.file}（${r.width}×${r.height}，已存进画册）` : `画失败了：${r.error}`;
+			return r.ok ? `画好了：${r.file}（${r.width}×${r.height}，已存进画册；图已经直接发给主人了，回复里不用再贴图）` : `画失败了：${r.error}`;
 		}
 	})), 'dsh-fish-soul: image_gen');
 

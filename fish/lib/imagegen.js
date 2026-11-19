@@ -45,6 +45,7 @@ export class ImageGen {
 		this.db = db; this.clock = clock; this.getConfig = getConfig; this.callLlm = callLlm; this.sendToMaster = sendToMaster; this.log = log;
 		this.fetch = fetchImpl ?? ((...a) => fetch(...a));
 		this.lastPing = { at: 0, ok: false, info: null };
+		this.recentSends = new Map(); // 文件名 -> 发送时间（防重复发图）
 	}
 
 	cfg() {
@@ -243,8 +244,24 @@ export class ImageGen {
 		const wantSend = typeof sendToMaster === 'boolean' ? sendToMaster : cfg.sendToMaster;
 		if (wantSend && typeof this.sendToMaster === 'function') {
 			try { sent = (await this.sendToMaster(gen.bytes, '')) === true; } catch { sent = false; }
+			// 记下来：如果模型又在回复里贴一次图，gateway 会跳过它（避免发两次）
+			try { this.recentSends.set(file, Date.now()); } catch { /* ignore */ }
 		}
 		return { ok: true, file, bytes: gen.bytes.length, width: gen.width, height: gen.height, prompt: fullPrompt.slice(0, 600), reviews, sent };
+	}
+
+	/** 这张画是不是刚由她主动发过（5 分钟内按文件名判）——给 gateway 防重复发图用。 */
+	wasSentRecently(p) {
+		try {
+			const base = String(p ?? '').replace(/\\/g, '/').split('/').pop();
+			if (base === '') return false;
+			const now = Date.now();
+			for (const [k, at] of this.recentSends) {
+				if (now - at > 5 * 60_000) { this.recentSends.delete(k); continue; }
+				if (k === base) return true;
+			}
+		} catch { /* ignore */ }
+		return false;
 	}
 
 	/** 画册列表（新→旧）。 */

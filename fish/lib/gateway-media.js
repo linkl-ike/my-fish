@@ -430,6 +430,8 @@ export const mediaMethods = {
 
 	resolveImageFile(p, workspacePath) {
 		const raw = String(p ?? '').trim();
+		// 她画完已经把图直接发过一次了：模型回复里再贴同一条路径就跳过，避免发两张
+		if (this.recentPaintSent?.(raw) === true) return null;
 		if (/^https?:\/\//i.test(raw)) return { type: 'image', data: { file: raw } };
 		const real = safeLocalImagePath(raw, workspacePath, (...args) => this.log(...args));
 		if (real === null) return null;
