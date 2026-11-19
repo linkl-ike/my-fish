@@ -53,7 +53,7 @@ export const SOURCE_DOUYIN = 'fish-soul/douyin';
 const OUR_SOURCES = new Set([SOURCE_QQ, SOURCE_PROACTIVE, SOURCE_BILI, SOURCE_DOUYIN]);
 
 /** QQ 会话里模型能用的全部工具（宿主 PTC 传输 run_code 不算工具本身，单独放行）。 */
-export const QQ_SESSION_TOOLS = ['remember', 'recall', 'forget'];
+export const QQ_SESSION_TOOLS = ['remember', 'recall', 'forget', 'memory_search', 'memory_browse', 'memory_stats', 'memory_read'];
 /** 跨平台转达：主人在 QQ 私聊里让她去抖音 / B站 私信自己一条。 */
 export const RELAY_TOOL = 'send_elsewhere';
 /** 聊天会话里放行的插件工具（记忆 + 跨平台转达）。 */

@@ -32,8 +32,9 @@ import { SlangLearner, slangConfig } from './slang.js';
 import { webSearchConfig, ownSearchReady, webSearch, formatSearch } from './websearch.js';
 import {
 	ChatJournal, ChatDigester, digestConfig, composeQuery, relTime, KIND_LABEL, STAGE_LABEL, stageStyle, effectiveAffinity,
-	getMood, nearDuplicateSync, reinforce, looksLikeProbe, markMoodSaid
+	getMood, nearDuplicateSync, reinforce, looksLikeProbe, markMoodSaid, sanitizeMemoryText
 } from './soul-memory.js';
+import { resolveOwner, ownerLabel, formatMemoryLine, searchMemories, browseMemories, memoryStats, readMemory } from './memory-tools.js';
 import { moodProfile, makeMoodJudge, DiaryWriter, debugRecall, behaviorLines } from './behavior.js';
 import { SnowLumaChannel } from './channels/snowluma.js';
 import { BiliClient, BiliChannel } from './channels/bilibili.js';
@@ -1349,7 +1350,7 @@ async function startup(ctx, config, { log, gate }) {
 		}),
 		output: textOutput,
 		async execute(args, toolCtx) {
-			const content = String(args.content ?? '').trim();
+			const content = sanitizeMemoryText(String(args.content ?? '').trim());
 			const kind = ['fact', 'event', 'feeling'].includes(args.kind) ? args.kind : 'fact';
 			if (content === '') return '内容为空，未写入。';
 			const session = sessionForTool(toolCtx, args.speaker);
@@ -1465,6 +1466,99 @@ async function startup(ctx, config, { log, gate }) {
 			return `已删除记忆 #${id}。`;
 		}
 	})), 'dsh-fish-soul: forget');
+
+	// ── 工具：记忆阅读（搜索 / 浏览 / 统计 / 读单条）──
+	// 鱼除了自动召回和 recall，还能主动翻自己的记忆库。非主人只能翻自己的，避免在群里翻出别人的私事。
+	const MASTER_OWNER = 'user:master';
+	const toolTargetOf = (session, ownerArg) => {
+		const r = resolveOwner(db, session.ownerId, ownerArg);
+		if (session.ownerId === MASTER_OWNER) return r;
+		if (r.all || r.ownerId !== session.ownerId) return null;
+		return r;
+	};
+	const memLineOf = (m, now) => formatMemoryLine(db, m, now);
+
+	ctx.effect(() => ctx.tools.register(defineTool({
+		name: 'memory_search',
+		description: '翻自己的长期记忆库：按关键词搜索，可以只看某个人（填显示名）或所有人（all）。比 recall 宽：recall 只查当前对话相关的，这个能按人名翻全库。',
+		parameters: objectSchema({
+			query: { type: 'string', required: true, description: '关键词或一句短问题' },
+			owner: { type: 'string', description: '只看谁：显示名（如「小明」）或 all（所有人）；不填 = 当前说话人' },
+			limit: { type: 'number', description: '最多几条（默认 8，最多 20）' },
+			speaker: { type: 'string', description: '群里多人说话时，当前说话人填署名；私聊不用填' }
+		}),
+		output: textOutput,
+		async execute(args, toolCtx) {
+			const session = sessionForTool(toolCtx, args.speaker);
+			const target = toolTargetOf(session, args.owner);
+			if (target === null) return '你只能翻自己的记忆。';
+			const now = clock.now();
+			const { rows, total } = searchMemories(db, { ownerId: target.ownerId, query: String(args.query ?? ''), limit: Math.max(1, Math.min(20, Number(args.limit ?? 8) || 8)) });
+			if (rows.length === 0) return '没有搜到相关记忆。';
+			reinforce(db, rows.map((m) => m.id), now);
+			return `共 ${total} 条命中，显示 ${rows.length} 条：\n` + rows.map((m) => memLineOf(m, now)).join('\n');
+		}
+	})), 'dsh-fish-soul: memory_search');
+
+	ctx.effect(() => ctx.tools.register(defineTool({
+		name: 'memory_browse',
+		description: '往前翻自己的记忆：按时间倒序列出某个人（或所有人）最近的记忆条目。',
+		parameters: objectSchema({
+			owner: { type: 'string', description: '翻谁的：显示名或 all；不填 = 当前说话人' },
+			limit: { type: 'number', description: '最多几条（默认 10，最多 30）' },
+			before: { type: 'number', description: '只翻更早的：传上一批最后一条的 created_at 时间戳' },
+			speaker: { type: 'string', description: '群里多人说话时，当前说话人填署名；私聊不用填' }
+		}),
+		output: textOutput,
+		async execute(args, toolCtx) {
+			const session = sessionForTool(toolCtx, args.speaker);
+			const target = toolTargetOf(session, args.owner);
+			if (target === null) return '你只能翻自己的记忆。';
+			const now = clock.now();
+			const rows = browseMemories(db, { ownerId: target.ownerId, limit: Math.max(1, Math.min(30, Number(args.limit ?? 10) || 10)), before: args.before });
+			if (rows.length === 0) return '没有更早的记忆了。';
+			const tail = rows.length > 0 ? `\n（更早的可以用 before=${rows[rows.length - 1].created_at}）` : '';
+			return rows.map((m) => memLineOf(m, now)).join('\n') + tail;
+		}
+	})), 'dsh-fish-soul: memory_browse');
+
+	ctx.effect(() => ctx.tools.register(defineTool({
+		name: 'memory_stats',
+		description: '看看自己记得多少：总条数、按类型 / 人分布、最近 7 天新增、最常被想起的几条。',
+		parameters: objectSchema({}),
+		output: textOutput,
+		async execute() {
+			const st = memoryStats(db, { now: clock.now() });
+			const lines = [`总共 ${st.total} 条记忆（已归档 ${st.archived} 条），最近 7 天新增 ${st.recent7} 条。`];
+			if (st.kinds.length > 0) lines.push('类型：' + st.kinds.map((k) => `${KIND_LABEL[k.kind] ?? k.kind} ${k.n}`).join(' / '));
+			if (st.persons.length > 0) lines.push('按人：' + st.persons.map((p) => `${ownerLabel(db, p.owner_id)} ${p.n}`).join(' / '));
+			if (st.topRecall.length > 0) lines.push('最常被想起：' + st.topRecall.map((m) => `#${m.id} ${String(m.content).slice(0, 24)}（${m.recall_count} 次）`).join(' / '));
+			return lines.join('\n');
+		}
+	})), 'dsh-fish-soul: memory_stats');
+
+	ctx.effect(() => ctx.tools.register(defineTool({
+		name: 'memory_read',
+		description: '读某一条记忆的完整内容和来源（#id 来自搜索 / 浏览 / recall 的结果）。',
+		parameters: objectSchema({
+			id: { type: 'number', required: true, description: '记忆 id' },
+			speaker: { type: 'string', description: '群里多人说话时，当前说话人填署名；私聊不用填' }
+		}),
+		output: textOutput,
+		async execute(args, toolCtx) {
+			const session = sessionForTool(toolCtx, args.speaker);
+			const hit = readMemory(db, { id: Number(args.id) });
+			if (hit === null) return `没有找到记忆 #${args.id}。`;
+			if (session.ownerId !== MASTER_OWNER && hit.row.owner_id !== session.ownerId) return '这条不是你自己的记忆，不能看。';
+			const r = hit.row;
+			const now = clock.now();
+			return `#${r.id} [${KIND_LABEL[r.kind] ?? r.kind}] 属于 ${hit.who}（${r.channel ?? '?'}）\n` +
+				`内容：${r.content}\n` +
+				`来源：${r.evidence || '（无）'}\n` +
+				`记录：${relTime(r.created_at, now)}，重要度 ${r.importance}，情绪 ${r.emotion}，被想起 ${r.recall_count} 次` +
+				(r.status !== 'active' ? `，状态 ${r.status}` : '');
+		}
+	})), 'dsh-fish-soul: memory_read');
 
 	// ── 工具：send_elsewhere（主人在 QQ 私聊里让她去抖音 / B站 私信自己一条）──
 	ctx.effect(() => ctx.tools.register(defineTool({

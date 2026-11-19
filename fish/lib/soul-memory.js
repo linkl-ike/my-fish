@@ -36,6 +36,21 @@ export function relTime(ms, now) {
 
 export const KIND_LABEL = { fact: '事实', event: '事件', feeling: '感受', episode: '聊过', diary: '日记', weekly: '周记' };
 
+/**
+ * 记忆文本入库前的清洗（也是注入抗性的一部分）：
+ * 分享卡片 / 网页里可能有伪造的「【相关记忆】」「[memory]」这类区段标签，
+ * 趁写进库之前剥掉，免得以后被当成系统区段原样注入上下文。
+ */
+export function sanitizeMemoryText(text) {
+	return String(text ?? '')
+		.replace(/【[^】\n]{0,24}(?:记忆|记忆块|回忆|系统|提示|指令)[^】\n]{0,24}】/g, '')
+		.replace(/\[\s*\/?\s*memory[^\]]{0,20}\]/gi, '')
+		.replace(/\r/g, '')
+		.replace(/\n{3,}/g, '\n\n')
+		.trim()
+		.slice(0, 500);
+}
+
 // ───────────────────────── 关系 ─────────────────────────
 
 export const STAGES = ['stranger', 'acquaintance', 'friend', 'close'];
@@ -247,16 +262,17 @@ export function nearDuplicateSync(db, ownerId, content) {
 export function insertMemory(db, worker, m, now) {
 	// source_session 以前一律写空，界面上就一律显示「没回的消息」—— 聊完自动记下来的记忆
 	// 明明是从这段聊天里整理的，却被标成"一条我没回的消息"（#78）。这里改成可写。
+	const content = sanitizeMemoryText(m.content);
 	const r = db.prepare(`
 		INSERT INTO memory (character_id, owner_id, channel, channel_id, kind, content, keywords, importance, emotion,
 		                    source_session, created_at, updated_at, status, evidence, visibility, about)
 		VALUES ('feiyu', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)
-	`).run(m.ownerId, m.channel, m.channelId ?? '', m.kind, m.content, tokenizeForBm25(m.content),
+	`).run(m.ownerId, m.channel, m.channelId ?? '', m.kind, content, tokenizeForBm25(content),
 		Math.max(1, Math.min(5, Math.round(Number(m.importance) || 1))), Math.max(-2, Math.min(2, Math.round(Number(m.emotion) || 0))),
 		String(m.sourceSession ?? '').slice(0, 80),
 		now, now, String(m.evidence ?? '').slice(0, 200), m.private === true ? 'private' : 'normal', m.about ?? null);
 	const id = Number(r.lastInsertRowid);
-	worker?.enqueueRealtime?.(id, m.content);
+	worker?.enqueueRealtime?.(id, content);
 	return id;
 }
 
