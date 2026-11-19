@@ -402,6 +402,20 @@ window.__ModuleLoader__.load({
       const [outdatedS, setOutdatedS] = React.useState(null);
       const [sttBase, setSttBase] = React.useState("");
       const [sttModel, setSttModel] = React.useState("");
+      // 语音（说）：火山引擎 / 本机语音桥的完整配置草稿（保存前在面板里编辑）
+      const [ttsDraft, setTtsDraft] = React.useState(null);
+      const [sttToken, setSttToken] = React.useState("");
+      React.useEffect(() => {
+        if (!voice) return;
+        setTtsDraft((prev) => prev ?? {
+          provider: voice.ttsProvider || "",
+          baseURL: (voice.tts && voice.tts.baseURL) || "",
+          appId: (voice.volc && voice.volc.appId) || "",
+          token: "",
+          cluster: (voice.volc && voice.volc.cluster) || "",
+          resourceId: (voice.volc && voice.volc.resourceId) || "",
+        });
+      }, [voice]);
 
       // ── v0.8：导入旧聊天 / 记忆批量操作 ──
       const [importText, setImportText] = React.useState("");
@@ -748,50 +762,93 @@ window.__ModuleLoader__.load({
           void audio.play();
         } catch (e) { notify(`播放失败：${String(e)}`); }
       };
-      const VoiceTab = () => h("div", { style: styles.grid },
-        h(Card, { title: "语音（说）" },
-          h(Row, { label: "启用" }, h(Switch, { checked: voiceCfg.enabled === true, onChange: (v) => postJson(`${FISH}/voice/config`, { enabled: v }).then(load) })),
-          h(Row, { label: "说话策略" }, h(Select, { value: voiceCfg.speak || "sometimes", options: [["never", "从不"], ["mirror", "对方发语音才回"], ["sometimes", "偶尔主动发"]], onChange: (v) => postJson(`${FISH}/voice/config`, { speak: v }).then(load) })),
-          h(Row, { label: "音色 ID" }, h(Text, { value: voiceCfg.ttsVoice || "", placeholder: "S_xxx", onChange: (v) => setVoice({ ...voice, ttsVoice: v }) })),
-          h(Row, { label: "服务商" }, h("span", { style: styles.mono }, voiceCfg.ttsProvider || "—")),
-          h(Row, { label: "今日剩余" }, h("span", null, `${voiceCfg.ttsLeft ?? "?"} 次`)),
-          h("div", { style: { marginTop: 8, textAlign: "right" } },
-            h("button", { type: "button", style: styles.btn(true), disabled: busy, onClick: async () => { setBusy(true); const r = await postJson(`${FISH}/voice/config`, { enabled: voiceCfg.enabled === true, speak: voiceCfg.speak || "sometimes", ttsVoice: voiceCfg.ttsVoice || "" }); setBusy(false); notify(r?.ok ? "语音配置已保存" : `保存失败：${r?.error || ""}`); load(); } }, "保存语音"))),
-        h(Card, { title: "试听（走火山复刻）" },
-          h("div", { style: { display: "flex", gap: 8, marginBottom: 8 } }, h(Text, { value: voiceText, onChange: setVoiceText, style: { width: "100%" } })),
-          h("div", { style: { textAlign: "right" } },
-            h("button", { type: "button", style: styles.btn(true), disabled: busy, onClick: async () => {
-              setBusy(true);
-              const r = await postJson(`${FISH}/voice/test`, { text: voiceText });
-              setBusy(false);
-              if (r && r.ok && r.base64) { playBase64(r.base64); notify("正在播放试听"); }
-              else notify(`试听失败：${(r && r.error) || "没有音频"}`);
-            } }, "生成并播放")),
-          h("div", { style: styles.hint }, "单次最多 60 字；会消耗一次每日语音额度。")),
-        h(Card, { title: "听语音（STT）/ 收到的语音" },
-          h(Row, { label: "保存收到的" }, h(Switch, { checked: voice.saveIncoming === true, onChange: (v) => postJson(`${FISH}/voice/config`, { saveIncoming: v }).then((r) => { notify(r && r.ok ? "已保存" : "保存失败"); void load(); }) })),
-          h(Row, { label: "STT 模型" }, h(Text, { value: sttModel, onChange: setSttModel, placeholder: voice.sttModel || "FunAudioLLM/SenseVoiceSmall" })),
-          h(Row, { label: "STT 端点" }, h(Text, { value: sttBase, onChange: setSttBase, placeholder: "留空 = 跟 TTS 同一个端点" })),
-          h(Row, { label: "收到语音" }, h("span", null, `${voice.incomingCount ?? 0} 个 · 今日剩余 ${voice.sttLeft ?? "?"} 次`)),
-          h("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8, flexWrap: "wrap" } },
-            h("button", { type: "button", style: styles.btn(false), disabled: busy, onClick: async () => {
-              setBusy(true);
-              const r = await postJson(`${FISH}/voice/clear-incoming`, {});
-              setBusy(false);
-              notify(r && r.ok ? `已清理 ${r.removed ?? 0} 个语音文件` : `清理失败：${(r && r.error) || ""}`);
-              void load();
-            } }, "清理收到的语音"),
-            h("button", { type: "button", style: styles.btn(true), disabled: busy, onClick: async () => {
-              setBusy(true);
-              const body = {};
-              if (sttModel.trim() !== "") body.sttModel = sttModel.trim();
-              if (sttBase.trim() !== "") body.sttBaseURL = sttBase.trim();
-              const r = await postJson(`${FISH}/voice/config`, body);
-              setBusy(false);
-              notify(r && r.ok ? "STT 配置已保存" : `保存失败：${(r && r.error) || ""}`);
-              void load();
-            } }, "保存 STT 配置"))),
-      );
+      // 语音（说）：火山引擎所需的 AppID / Access Token / 集群 / Resource ID 全部露出来，配新手引导
+      const VoiceTab = () => {
+        const v = voiceCfg;
+        const d = ttsDraft || {};
+        const setD = (patch) => setTtsDraft((prev) => ({ ...(prev || {}), ...patch }));
+        const saveTts = async () => {
+          setBusy(true);
+          const body = {
+            enabled: v.enabled === true,
+            speak: v.speak || "sometimes",
+            ttsVoice: v.ttsVoice || "",
+            ttsProvider: d.provider ?? "",
+            ttsBaseURL: d.baseURL ?? "",
+            volcAppId: d.appId ?? "",
+            volcCluster: d.cluster ?? "",
+            volcResourceId: d.resourceId ?? "",
+          };
+          if (String(d.token || "").trim() !== "") body.ttsApiKey = String(d.token).trim();
+          const r = await postJson(`${FISH}/voice/config`, body);
+          setBusy(false);
+          notify(r && r.ok ? "语音配置已保存" : `保存失败：${(r && r.error) || ""}`);
+          void load();
+        };
+        return h("div", { style: styles.grid },
+          h(Card, { title: "语音（说）" },
+            h(Row, { label: "启用" }, h(Switch, { checked: v.enabled === true, onChange: (x) => postJson(`${FISH}/voice/config`, { enabled: x }).then(load) })),
+            h(Row, { label: "说话策略" }, h(Select, { value: v.speak || "sometimes", options: [["never", "从不"], ["mirror", "对方发语音才回"], ["sometimes", "偶尔主动发"]], onChange: (x) => postJson(`${FISH}/voice/config`, { speak: x }).then(load) })),
+            h(Row, { label: "服务商" }, h(Select, { value: d.provider ?? "", options: [["", "自动识别"], ["openai", "OpenAI 兼容（本机语音桥）"], ["volcengine", "火山引擎（直连）"], ["mimo", "MiMo"], ["minimax", "MiniMax"]], onChange: (x) => setD({ provider: x }) })),
+            h(Row, { label: "接口地址" }, h(Text, { value: d.baseURL ?? "", placeholder: (v.tts && v.tts.effectiveBaseURL) || "留空 = 按服务商默认", onChange: (x) => setD({ baseURL: x }) })),
+            h(Row, { label: "AppID" }, h(Text, { value: d.appId ?? "", placeholder: "火山引擎 AppID（老版控制台）", onChange: (x) => setD({ appId: x }) })),
+            h(Row, { label: "Access Token" }, h(Text, { value: d.token ?? "", placeholder: (v.tts && v.tts.hasKey) ? `已保存（${(v.tts && v.tts.keyMasked) || "已填"}），要改就重新填` : "火山引擎 Access Token / 新版 API Key", onChange: (x) => setD({ token: x }) })),
+            h(Row, { label: "集群" }, h(Text, { value: d.cluster ?? "", placeholder: "volcano_tts；声音复刻填 volcano_icl", onChange: (x) => setD({ cluster: x }) })),
+            h(Row, { label: "Resource ID" }, h(Text, { value: d.resourceId ?? "", placeholder: "V3 用：seed-tts-2.0 / 复刻 seed-icl-2.0", onChange: (x) => setD({ resourceId: x }) })),
+            h(Row, { label: "音色 ID" }, h(Text, { value: v.ttsVoice || "", placeholder: "S_xxx", onChange: (x) => setVoice({ ...voice, ttsVoice: x }) })),
+            h(Row, { label: "今日剩余" }, h("span", null, `${v.ttsLeft ?? "?"} 次`)),
+            h("div", { style: { marginTop: 8, textAlign: "right" } },
+              h("button", { type: "button", style: styles.btn(true), disabled: busy, onClick: saveTts }, "保存语音"))),
+          h(Card, { title: "语音服务怎么连（新手引导）" },
+            h("div", { style: { ...styles.hint, lineHeight: 1.9 } },
+              h("div", { style: { fontWeight: 600, marginBottom: 2 } }, "① 本机语音桥（最省事，不需要登录）"),
+              h("div", null, "装了 fish-tts-shim 并在运行（8766）：接口地址填 http://127.0.0.1:8766/v1，Access Token 填 local-shim，音色用桥里复刻好的 S_xxx。"),
+              h("div", { style: { fontWeight: 600, marginTop: 8, marginBottom: 2 } }, "② 火山引擎直连 · 老版控制台（AppID + Access Token）"),
+              h("div", null, "服务商选「火山引擎」；AppID 和 Access Token 照控制台填；集群填 volcano_tts（声音复刻的音色填 volcano_icl）。"),
+              h("div", { style: { fontWeight: 600, marginTop: 8, marginBottom: 2 } }, "③ 火山引擎直连 · 新版控制台（只给 API Key）"),
+              h("div", null, "AppID 留空；Access Token 里填 API Key；Resource ID 填 seed-tts-2.0（声音复刻填 seed-icl-2.0）。"),
+              h("div", { style: { fontWeight: 600, marginTop: 8, marginBottom: 2 } }, "获取步骤"),
+              h("div", null, "火山引擎控制台 → 语音技术 → 语音合成 / 声音复刻 → 创建应用 → 复制 AppID / Access Token（或 API Key）；音色 ID 在「音色列表」复制。"),
+              h("div", { style: { display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", justifyContent: "flex-end" } },
+                h("button", { type: "button", style: styles.btn(false), disabled: busy, onClick: () => { window.open("https://console.volcengine.com/speech/", "_blank", "noreferrer"); } }, "打开火山语音控制台"),
+                h("button", { type: "button", style: styles.btn(false), disabled: busy, onClick: () => { window.open("https://console.volcengine.com/speech/service/8", "_blank", "noreferrer"); } }, "直达语音合成开通页")))),
+          h(Card, { title: "试听" },
+            h("div", { style: { display: "flex", gap: 8, marginBottom: 8 } }, h(Text, { value: voiceText, onChange: setVoiceText, style: { width: "100%" } })),
+            h("div", { style: { textAlign: "right" } },
+              h("button", { type: "button", style: styles.btn(true), disabled: busy, onClick: async () => {
+                setBusy(true);
+                const r = await postJson(`${FISH}/voice/test`, { text: voiceText });
+                setBusy(false);
+                if (r && r.ok && r.base64) { playBase64(r.base64); notify("正在播放试听"); }
+                else notify(`试听失败：${(r && r.error) || "没有音频"}`);
+              } }, "生成并播放")),
+            h("div", { style: styles.hint }, "单次最多 60 字；会消耗一次每日语音额度。")),
+          h(Card, { title: "听语音（STT）/ 收到的语音" },
+            h(Row, { label: "保存收到的" }, h(Switch, { checked: voice.saveIncoming === true, onChange: (x) => postJson(`${FISH}/voice/config`, { saveIncoming: x }).then((r) => { notify(r && r.ok ? "已保存" : "保存失败"); void load(); }) })),
+            h(Row, { label: "STT 模型" }, h(Text, { value: sttModel, onChange: setSttModel, placeholder: voice.sttModel || "FunAudioLLM/SenseVoiceSmall" })),
+            h(Row, { label: "STT 端点" }, h(Text, { value: sttBase, onChange: setSttBase, placeholder: "留空 = 跟 TTS 同一个端点" })),
+            h(Row, { label: "STT Key" }, h(Text, { value: sttToken, onChange: setSttToken, placeholder: (voice.stt && voice.stt.hasKey) ? `已保存（${(voice.stt && voice.stt.keyMasked) || "已填"}），要改就重新填` : "STT 服务商的 API Key（二选一：此 key 或 embedding key）" })),
+            h(Row, { label: "收到语音" }, h("span", null, `${voice.incomingCount ?? 0} 个 · 今日剩余 ${voice.sttLeft ?? "?"} 次`)),
+            h("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8, flexWrap: "wrap" } },
+              h("button", { type: "button", style: styles.btn(false), disabled: busy, onClick: async () => {
+                setBusy(true);
+                const r = await postJson(`${FISH}/voice/clear-incoming`, {});
+                setBusy(false);
+                notify(r && r.ok ? `已清理 ${r.removed ?? 0} 个语音文件` : `清理失败：${(r && r.error) || ""}`);
+                void load();
+              } }, "清理收到的语音"),
+              h("button", { type: "button", style: styles.btn(true), disabled: busy, onClick: async () => {
+                setBusy(true);
+                const body = {};
+                if (sttModel.trim() !== "") body.sttModel = sttModel.trim();
+                if (sttBase.trim() !== "") body.sttBaseURL = sttBase.trim();
+                if (sttToken.trim() !== "") body.sttApiKey = sttToken.trim();
+                const r = await postJson(`${FISH}/voice/config`, body);
+                setBusy(false);
+                notify(r && r.ok ? "STT 配置已保存" : `保存失败：${(r && r.error) || ""}`);
+                void load();
+              } }, "保存 STT 配置"))));
+      };
 
       // B站 / 抖音 行为
       const BehaviorTab = () => {

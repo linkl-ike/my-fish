@@ -211,7 +211,14 @@ export async function handleV07Route({ method, path, url, req, res, send, readBo
 		let incomingCount = null, desktopLatest = '', filesError = '';
 		try { incomingCount = voiceIncomingCount(); desktopLatest = voiceFileList('out').at(-1) ?? ''; }
 		catch { filesError = '语音文件目录不可用，请检查目录权限或符号链接'; }
-		send(200, { ok: true, ...voice.state(), incomingDir: voiceDir('in'), incomingCount, desktopDir: voiceDir('out'), desktopLatest, filesError, apiKeyMasked: maskKey(str(raw.apiKey)), sharesEmbedding: !c.hasOwnKey && c.apiKey !== '', stt: side('stt'), tts: side('tts') });
+		send(200, {
+			ok: true, ...voice.state(), incomingDir: voiceDir('in'), incomingCount, desktopDir: voiceDir('out'), desktopLatest, filesError,
+			apiKeyMasked: maskKey(str(raw.apiKey)), sharesEmbedding: !c.hasOwnKey && c.apiKey !== '',
+			// 面板「语音」页要显示：服务商、火山那边的 AppID / 集群 / Resource ID（token 只给掩码，不回传原值）
+			ttsProvider: str(raw.ttsProvider),
+			volc: { appId: str(raw.volcAppId), cluster: str(raw.volcCluster), resourceId: str(raw.volcResourceId), endpoint: str(raw.volcEndpoint) },
+			stt: side('stt'), tts: side('tts')
+		});
 		return true;
 	}
 	if (path === '/voice/config' && post) {
