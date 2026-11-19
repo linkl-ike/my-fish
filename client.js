@@ -430,6 +430,7 @@ window.__ModuleLoader__.load({
       const [memMdPreview, setMemMdPreview] = React.useState("");
       const [memExports, setMemExports] = React.useState(null);
       const [memImportText, setMemImportText] = React.useState("");
+      const [memAudit, setMemAudit] = React.useState(null);
       const [selfTest, setSelfTest] = React.useState(null);
 
       const saveChannel = async (kind, body, msg) => {
@@ -950,6 +951,23 @@ window.__ModuleLoader__.load({
           if (ms && ms.ok === true) setMemSummaryS(ms.items || []);
         } finally { setMemBusy(false); }
       };
+      // 记忆体检：重复 / 近似重复 / 过时 / 找不到主人；整理只归档不删除
+      const runAudit = async () => {
+        setMemBusy(true);
+        try {
+          const r = await getJson(`${FISH}/memory/audit`);
+          if (r && r.ok === true) setMemAudit(r); else notify("体检失败");
+        } finally { setMemBusy(false); }
+      };
+      const applyAuditFix = async () => {
+        if (!window.confirm("把重复 / 近似重复 / 过时的记忆归档？不会删除，可以在「已失效」里恢复。")) return;
+        setMemBusy(true);
+        try {
+          const r = await postJson(`${FISH}/memory/audit/apply`, { kinds: ["exact", "near", "stale"] });
+          notify(r && r.ok ? `已归档 ${r.archived} 条` : `整理失败：${(r && r.error) || ""}`);
+          setMemAudit(null); void load(); void loadMem();
+        } finally { setMemBusy(false); }
+      };
       // 记忆 Markdown 导出 / 预览 / 导入：本地完整保存（文件在 ~/.dsh/fish-soul/exports/）
       const exportMarkdown = async () => {
         setMemBusy(true);
@@ -1142,7 +1160,22 @@ window.__ModuleLoader__.load({
             h("button", { type: "button", style: styles.btn(true), disabled: memBusy, onClick: () => runBulk(false) }, "应用")),
           bulkResult ? h("div", { style: { ...styles.mono, fontSize: 12, marginTop: 6 } },
             bulkResult.error ? `❌ ${bulkResult.error}` : `匹配 ${bulkResult.matched} 条，改动 ${bulkResult.changed} 条${bulkResult.dryRun ? "（预览）" : ""}`) : null),
-        h(Card, { title: "记忆自动化" },
+        h(Card, { title: "记忆体检" },
+          h("div", { style: styles.hint }, "检查重复 / 近似重复 / 过时记忆。整理只归档不删除，可在「已失效」里恢复。"),
+          h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end", marginTop: 8 } },
+            h("button", { type: "button", style: styles.btn(false), disabled: memBusy, onClick: () => runAudit() }, memAudit ? "重新检查" : "检查"),
+            memAudit && (memAudit.summary.exact + memAudit.summary.near + memAudit.summary.stale) > 0
+              ? h("button", { type: "button", style: styles.btn(true), disabled: memBusy, onClick: () => applyAuditFix() }, "一键整理")
+              : null),
+          memAudit
+            ? h("div", { style: { marginTop: 8, fontSize: 13 } },
+                h("div", null, `共 ${memAudit.summary.total} 条活跃：完全重复 ${memAudit.summary.exact} 组 · 近似重复 ${memAudit.summary.near} 组 · 过时 ${memAudit.summary.stale} 条 · 找不到主人 ${memAudit.summary.orphan} 条`),
+                ((memAudit.items && memAudit.items.exact) || []).slice(0, 5).map((g) => h("div", { key: `e${g.ids.join("-")}`, style: { opacity: 0.8, fontSize: 12, padding: "2px 0" } }, `[重复] ${g.name}：${g.preview}（${g.count} 条）`)),
+                ((memAudit.items && memAudit.items.near) || []).slice(0, 5).map((g) => h("div", { key: `n${g.ids.join("-")}`, style: { opacity: 0.8, fontSize: 12, padding: "2px 0" } }, `[近似] ${g.name}：${g.preview} ／ ${g.previewB}（相似 ${g.sim}）`)),
+                ((memAudit.items && memAudit.items.stale) || []).slice(0, 5).map((g) => h("div", { key: `s${g.id}`, style: { opacity: 0.8, fontSize: 12, padding: "2px 0" } }, `[过时] ${g.name}：${g.preview}（${g.ageDays} 天没想起）`)),
+                ((memAudit.items && memAudit.items.orphan) || []).slice(0, 5).map((g) => h("div", { key: `o${g.id}`, style: { opacity: 0.8, fontSize: 12, padding: "2px 0" } }, `[找不到主人] ${g.ownerId}：${g.preview}`)))
+            : null),
+                h(Card, { title: "记忆自动化" },
           h(Row, { label: "自动整理" }, h(Switch, { checked: memStateS?.autoExtract !== false, onChange: (v) => postJson(`${FISH}/memory/config`, { autoExtract: v }).then((r) => { notify(r && r.ok ? "已保存" : "保存失败"); void load(); }) })),
           h(Row, { label: "空闲分钟" }, h(Num, { value: memStateS?.idleMinutes ?? 10, min: 1, max: 240, onChange: (v) => postJson(`${FISH}/memory/config`, { idleMinutes: v }).then(load) })),
           h(Row, { label: "每次最多行" }, h(Num, { value: memStateS?.maxLines ?? 40, min: 10, max: 80, onChange: (v) => postJson(`${FISH}/memory/config`, { maxLines: v }).then(load) })),

@@ -13,6 +13,7 @@ import { STAGES, PROFILE_FIELDS, stageBase, effectiveAffinity, getMood, mergePro
 
 import { bulkMemory } from './memory-bulk.js';
 import { buildMarkdown, writeMarkdown, listMarkdown, importMarkdown, exportsDir } from './memory-export.js';
+import { auditMemories, applyAudit } from './memory-audit.js';
 import { dateCompact, isCalendarDate } from './time-util.js';
 
 const KINDS = ['fact', 'event', 'feeling', 'episode'];
@@ -231,6 +232,18 @@ export async function handleSoulRoute({ method, path, url, req, res, send, readB
 		} catch (error) {
 			send(200, { ok: false, error: error instanceof Error ? error.message : String(error) });
 		}
+		return true;
+	}
+	// 记忆体检：重复 / 近似重复 / 过时 / 找不到主人，可一键归档
+	if (path === '/memory/audit' && method === 'GET') {
+		send(200, { ok: true, ...auditMemories({ db, clock }) });
+		return true;
+	}
+	if (path === '/memory/audit/apply' && post) {
+		if (!guard()) return true;
+		const b = await body();
+		const kinds = Array.isArray(b.kinds) ? b.kinds.filter((k) => ['exact', 'near', 'stale'].includes(k)) : ['exact', 'near', 'stale'];
+		send(200, applyAudit({ db, now: clock.now(), kinds }));
 		return true;
 	}
 	if (path === '/memory/summary/state' && method === 'GET') {
