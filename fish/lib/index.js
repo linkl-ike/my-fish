@@ -641,10 +641,9 @@ async function startup(ctx, config, { log, gate }) {
 			try {
 				const uin = String(gateway?.masterQq?.() ?? '').trim();
 				if (!/^\d{5,12}$/.test(uin) || channel === null) return false;
-				await channel.send(`private:${uin}`, [
-					{ type: 'text', data: { text: caption } },
-					{ type: 'image', data: { file: `base64://${bytes.toString('base64')}` } }
-				]);
+				const segments = [{ type: 'image', data: { file: `base64://${bytes.toString('base64')}` } }];
+				if (caption) segments.unshift({ type: 'text', data: { text: caption } });
+				await channel.send(`private:${uin}`, segments);
 				return true;
 			} catch { return false; }
 		}

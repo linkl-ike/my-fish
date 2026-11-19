@@ -242,7 +242,7 @@ export class ImageGen {
 		let sent = false;
 		const wantSend = typeof sendToMaster === 'boolean' ? sendToMaster : cfg.sendToMaster;
 		if (wantSend && typeof this.sendToMaster === 'function') {
-			try { sent = (await this.sendToMaster(gen.bytes, `画好了：${String(base).slice(0, 120)}\n${styleText ? `（风格：${cfg.styles.join('、')}）` : ''}`)) === true; } catch { sent = false; }
+			try { sent = (await this.sendToMaster(gen.bytes, '')) === true; } catch { sent = false; }
 		}
 		return { ok: true, file, bytes: gen.bytes.length, width: gen.width, height: gen.height, prompt: fullPrompt.slice(0, 600), reviews, sent };
 	}
