@@ -24,6 +24,14 @@ powershell -ExecutionPolicy Bypass -File tools/check-env.ps1
 
 ## 安装
 
+> 📦 **想直接在 DSH 插件市场里搜索安装？**
+> 1. 打开 **插件 → 实验性插件 → 自定义插件索引**（Custom plugin indexes）开关
+> 2. 打开 **发现 → 添加索引源**，填入：`https://linkl-ike.github.io/my-fish/market/index.json`
+> 3. 搜索 `my fish` 或 `fish` 即可看到
+>
+> 索引源不需要是官方源：DSH 的市场本身不内置任何索引，这里只是提供一个可访问的 format-1 索引文件。
+
+
 ### 从 GitHub 直接安装（DSH CLI）
 
 ```sh
