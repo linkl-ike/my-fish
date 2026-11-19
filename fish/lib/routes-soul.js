@@ -238,7 +238,7 @@ export async function handleSoulRoute({ method, path, url, req, res, send, readB
 	if (path === '/imagegen/state' && method === 'GET') {
 		const cfg = imageGen?.cfg() ?? {};
 		const ping = await (imageGen?.ping() ?? { ok: false, info: null });
-		send(200, { ok: true, enabled: cfg.enabled === true, online: ping.ok === true, info: ping.info, baseURL: cfg.baseURL ?? '', unet: cfg.unet ?? '', width: cfg.width ?? 1024, height: cfg.height ?? 1024, steps: cfg.steps ?? 20, autoPaint: cfg.autoPaint !== false, autoPerDay: cfg.autoPerDay ?? 1, paintedToday: imageGen?.paintedToday?.() ?? 0, gallery: imageGen?.gallery?.() ?? [] });
+		send(200, { ok: true, enabled: cfg.enabled === true, online: ping.ok === true, info: ping.info, baseURL: cfg.baseURL ?? '', unet: cfg.unet ?? '', width: cfg.width ?? 1024, height: cfg.height ?? 1024, steps: cfg.steps ?? 40, styles: cfg.styles ?? [], review: cfg.review !== false, sendToMaster: cfg.sendToMaster === true, hideWindow: cfg.hideWindow !== false, promptMin: cfg.promptMin ?? 500, autoPaint: cfg.autoPaint !== false, autoPerDay: cfg.autoPerDay ?? 1, paintedToday: imageGen?.paintedToday?.() ?? 0, gallery: imageGen?.gallery?.() ?? [] });
 		return true;
 	}
 	if (path === '/imagegen/config' && post) {
@@ -249,6 +249,9 @@ export async function handleSoulRoute({ method, path, url, req, res, send, readB
 		for (const k of ['baseURL', 'unet', 'clip', 'clipType', 'vae', 'positivePrefix', 'negative']) if (typeof b[k] === 'string') s[k] = String(b[k]).slice(0, 400);
 		for (const k of ['width', 'height', 'steps', 'cfg', 'shift', 'autoPerDay', 'maxPromptChars']) if (b[k] !== undefined && Number.isFinite(Number(b[k]))) s[k] = Number(b[k]);
 		if (b.autoPaint !== undefined) s.autoPaint = b.autoPaint === true;
+		for (const k of ['review', 'sendToMaster', 'hideWindow']) if (b[k] !== undefined) s[k] = b[k] === true;
+		if (Array.isArray(b.styles)) s.styles = b.styles.map((v) => String(v).trim()).filter(Boolean).slice(0, 8);
+		if (b.promptMin !== undefined && Number.isFinite(Number(b.promptMin))) s.promptMin = Math.max(50, Math.min(5000, Number(b.promptMin)));
 		saveConfig({ imagegen: s });
 		send(200, { ok: true });
 		return true;

@@ -1132,6 +1132,14 @@ window.__ModuleLoader__.load({
           if (!dryRun) { void load(); void loadMem(); }
         } else { setBulkResult({ error: (r && r.error) || "批量失败" }); notify(`批量失败：${(r && r.error) || ""}`); }
       };
+      // 画风多选（拼进提示词末尾）
+      const IMAGE_STYLES = ["插画", "写实", "二次元", "水彩", "油画", "电影感", "赛博朋克", "国风", "像素", "黑白"];
+      const toggleStyle = async (st) => {
+        const cur = ((imagegenS && imagegenS.styles) || []).slice();
+        const i = cur.indexOf(st);
+        if (i >= 0) cur.splice(i, 1); else cur.push(st);
+        await saveImagegen({ styles: cur });
+      };
       // 画册：本机 ComfyUI（Qwen-Image）画图 + 画册
       const ImageGenTab = () => {
         const ig = imagegenS && imagegenS.ok !== false ? imagegenS : null;
@@ -1147,13 +1155,21 @@ window.__ModuleLoader__.load({
             h(Row, { label: "尺寸" }, h(Select, { value: `${(ig && ig.width) || 1024}x${(ig && ig.height) || 1024}`, options: [["1024x1024", "1024×1024"], ["1328x1328", "1328×1328"], ["832x1216", "832×1216 竖"], ["1216x832", "1216×832 横"]], onChange: (v) => { const [w, hh] = v.split("x").map(Number); saveImagegen({ width: w, height: hh }); } })),
             h(Row, { label: "步数" }, h(Num, { value: (ig && ig.steps) || 20, min: 4, max: 60, onChange: (v) => saveImagegen({ steps: v }) })),
             h(Row, { label: "自己画" }, h(Switch, { checked: (ig && ig.autoPaint) !== false, onChange: (v) => saveImagegen({ autoPaint: v }) })),
-            h("div", { style: styles.hint }, `今天自己画了 ${(ig && ig.paintedToday) || 0} / ${(ig && ig.autoPerDay) || 1} 张；空闲时她会自己想题目画一张（8 小时后可再画）。`)),
+            h(Row, { label: "画风" }, h("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "flex-end" } },
+              IMAGE_STYLES.map((st) => {
+                const on = ((ig && ig.styles) || []).includes(st);
+                return h("button", { key: st, type: "button", onClick: () => toggleStyle(st), style: { ...styles.btn(on), padding: "4px 11px", borderRadius: 999 } }, st);
+              }))),
+            h(Row, { label: "画完审查" }, h(Switch, { checked: (ig && ig.review) !== false, onChange: (v) => saveImagegen({ review: v }) })),
+            h(Row, { label: "审查后发 QQ" }, h(Switch, { checked: (ig && ig.sendToMaster) === true, onChange: (v) => saveImagegen({ sendToMaster: v }) })),
+            h(Row, { label: "藏 Comfy 窗口" }, h(Switch, { checked: (ig && ig.hideWindow) !== false, onChange: (v) => saveImagegen({ hideWindow: v }) })),
+            h("div", { style: styles.hint }, `提示词 500~800 字 · 画完先审查 · 今天自己画了 ${(ig && ig.paintedToday) || 0} / ${(ig && ig.autoPerDay) || 1} 张；空闲时她会自己想题目画一张（8 小时后可再画）。`)),
           h(Card, { title: "画一张" },
             h(Area, { value: paintPrompt, onChange: setPaintPrompt, placeholder: "画面描述（300~800 字）：主体在做什么、场景、构图视角、光线、色彩、风格（插画/写实/电影感）、氛围、细节——写得越具体越不跑偏", style: { width: "100%", minHeight: 130 } }),
             h("div", { style: { display: "flex", gap: 8, marginTop: 10, justifyContent: "flex-end" } },
               h("button", { type: "button", style: styles.btn(true), disabled: paintBusy || !ig || ig.enabled !== true, onClick: () => paintNow() }, paintBusy ? "画着…（约 1 分钟）" : "生成")),
             paintResult ? h("div", { style: { marginTop: 12 } }, h("img", { src: paintResult, style: { maxWidth: "100%", borderRadius: 12 } })) : null,
-            h("div", { style: styles.hint }, "提示词建议 300~800 字；12GB 显存下 1024×1024 / 40 步约 1~2 分钟；图存在 ~/.dsh/fish-soul/gallery/。")),
+            h("div", { style: styles.hint }, "提示词建议 500~800 字；12GB 显存下 1024×1024 / 40 步约 1~2 分钟；画完会先审查，通过后才留下（开了「审查后发 QQ」会发到你的私聊）。")),
           h(Card, { title: "画册" },
             gallery.length === 0
               ? h("div", { style: styles.hint }, "还没画过。等她画，或者上面点「生成」。")

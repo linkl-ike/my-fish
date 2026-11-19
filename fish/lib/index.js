@@ -634,7 +634,21 @@ async function startup(ctx, config, { log, gate }) {
 	const memoryDigest = new MemoryDigest({ db, clock, callLlm, getConfig: () => currentConfig, log, nameOf });
 
 	// 画图：本机 ComfyUI（Qwen-Image），存本地画册
-	const imageGen = new ImageGen({ db, clock, getConfig: () => currentConfig, log });
+	const imageGen = new ImageGen({
+		db, clock, getConfig: () => currentConfig, log, callLlm,
+		// 审查通过后发到主人 QQ 私聊；延迟取 gateway / channel（创建它们时还没建好）
+		sendToMaster: async (bytes, caption) => {
+			try {
+				const uin = String(gateway?.masterQq?.() ?? '').trim();
+				if (!/^\d{5,12}$/.test(uin) || channel === null) return false;
+				await channel.send(`private:${uin}`, [
+					{ type: 'text', data: { text: caption } },
+					{ type: 'image', data: { file: `base64://${bytes.toString('base64')}` } }
+				]);
+				return true;
+			} catch { return false; }
+		}
+	});
 
 	function memoryLines(ownerId, query, vec, budget, used = null, { excludePrivate = false, skip = null } = {}) {
 		const out = [];
@@ -1246,7 +1260,7 @@ async function startup(ctx, config, { log, gate }) {
 			const ping = await imageGen.ping();
 			if (!ping.ok) return;
 			const mood = String(emotion?.promptLine?.() ?? '');
-			const raw = await callLlm(`写一段你现在想画的画面的详细描述（300~800 字：主体在做什么、场景在哪、构图视角、光线、色彩、氛围、风格是插画还是写实还是电影感、有什么好玩的细节）。只输出这段描述，不要标题、不要解释。你现在的心情：${mood || '平静'}。`, { maxTokens: 60 }).catch(() => '');
+			const raw = await callLlm(`写一段你现在想画的画面的详细描述（500~800 字：主体在做什么、场景在哪、构图视角、光线、色彩、氛围、风格是插画还是写实还是电影感、有什么好玩的细节）。只输出这段描述，不要标题、不要解释。你现在的心情：${mood || '平静'}。`, { maxTokens: 60 }).catch(() => '');
 			const prompt = String(raw ?? '').trim().replace(/^["“]|["”]$/g, '').slice(0, cfg.maxPromptChars);
 			if (prompt === '') return;
 			const r = await imageGen.paint({ prompt, note: '自己想的' });
@@ -1616,9 +1630,9 @@ async function startup(ctx, config, { log, gate }) {
 	// ── 工具：画图（本机 ComfyUI / Qwen-Image；画完存画册）──
 	ctx.effect(() => ctx.tools.register(defineTool({
 		name: 'image_gen',
-		description: '画一张图（用主人的本机 ComfyUI / Qwen-Image）。先在心里把画面想具体，再写 300~800 字的详细描述（主体、动作、场景、构图、光线、色彩、风格、氛围、细节），画完存进画册，可以在面板「画册」里看。',
+		description: '画一张图（用主人的本机 ComfyUI / Qwen-Image）。先在心里把画面想具体，再写 500~800 字的详细描述（主体、动作、场景、构图、光线、色彩、风格、氛围、细节），画完自动审查、存进画册，可以在面板「画册」里看。',
 		parameters: objectSchema({
-			prompt: { type: 'string', required: true, description: '画面描述（300~800 字：写清楚主体在做什么、场景、构图视角、光线、色彩、风格、氛围和细节——写得越具体，画出来越不跑偏）' },
+			prompt: { type: 'string', required: true, description: '画面描述（500~800 字：写清楚主体在做什么、场景、构图视角、光线、色彩、风格、氛围和细节——写得越具体，画出来越不跑偏）' },
 			width: { type: 'number', description: '宽（默认 1024，可省）' },
 			height: { type: 'number', description: '高（默认 1024，可省）' }
 		}),

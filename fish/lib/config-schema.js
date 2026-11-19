@@ -136,7 +136,12 @@ export function fishSoulConfigSchema(z) {
 			shift: z.number().default(3.1),
 			autoPaint: z.boolean().default(true),
 			autoPerDay: z.number().default(1),
-			maxPromptChars: z.number().default(1200)
+			maxPromptChars: z.number().default(1200),
+			promptMin: z.number().default(500), // 提示词最少字数（工具/自主画图按这个要求）
+			styles: z.array(z.string()).default([]), // 画风多选（插画 / 写实 / 二次元…）
+			review: z.boolean().default(true), // 画完先审查再留下
+			sendToMaster: z.boolean().default(true), // 审查通过后发到主人 QQ 私聊（默认开）
+			hideWindow: z.boolean().default(true) // 作画前把 Comfy Desktop 窗口藏起来
 		}).default({}),
 		memory: z.object({ // v0.8 聊完自动记：一段聊天空下来 idleMinutes 分钟（或攒够 maxLines 句）就整理一次
 			autoExtract: z.boolean().default(true),

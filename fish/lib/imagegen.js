@@ -1,12 +1,19 @@
 ﻿/**
  * imagegen.js —— ComfyUI 画图：把她的想法变成一张图（本地生成，不起别的服务）。
  *
- * 实测环境（2026-11-19）：Comfy Desktop + Qwen-Image 2.1（int8 量化，12GB 显存够用）。
- * 工作流：UNETLoader(qwen_image_2.1) → ModelSamplingAuraFlow(shift) → KSampler(euler/simple)
- *        + CLIPLoader(qwen3.5 9b, type=qwen_image) → 正/负提示词 + EmptySD3LatentImage + VAEDecode。
+ * 实测环境（2026-11-19）：Comfy Desktop + Qwen-Image 2.1（int8 量化，12GB 显存）。
+ * 文生图工作流：UNETLoader(qwen_image_2.1) → ModelSamplingAuraFlow(shift) → KSampler(euler/simple)
+ *        + CLIPLoader(qwen3vl_8b, type=qwen_image —— 注意 pe_i2i 是编辑专用，不能用于文生图)
+ *        + 正/负提示词 + EmptySD3LatentImage + VAEDecode。
+ *
+ * 加了三件事：
+ *  - 作画前把 Comfy Desktop 窗口藏起来（hideWindow，默认开）；
+ *  - 画完先让模型审查（review，默认开）：画面正常/主体完整/大体符合描述，PASS 才留下；
+ *  - 审查通过后可以发到主人 QQ 私聊（sendToMaster，由 index.js 注入发送函数）。
  *
  * 所有图存在本机 ~/.dsh/fish-soul/gallery/，索引在 kv；生成过程不联网（只连本机 ComfyUI）。
  */
+import { execFile } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fishSoulDir, getKv, setKv } from './db.js';
@@ -16,6 +23,7 @@ const DEFAULT_NEG = '低分辨率，低画质，肢体畸形，手指畸形，�
 const GALLERY_KV = 'imagegen.gallery';
 const GALLERY_MAX = 120;
 const DAY_MS = 86_400_000;
+const MAX_TRIES = 2;
 
 const pad = (n) => String(n).padStart(2, '0');
 const stamp = (ms) => { const t = new Date(ms + 8 * 3600_000); return `${t.getUTCFullYear()}${pad(t.getUTCMonth() + 1)}${pad(t.getUTCDate())}-${pad(t.getUTCHours())}${pad(t.getUTCMinutes())}${pad(t.getUTCSeconds())}${String(t.getUTCMilliseconds()).padStart(3, '0')}`; };
@@ -28,11 +36,13 @@ export class ImageGen {
 	 * @param {object} deps.db
 	 * @param {object} deps.clock
 	 * @param {() => object} deps.getConfig 返回当前配置（读 imagegen）
+	 * @param {(prompt: string, opts?: object) => Promise<string|null>} [deps.callLlm] 审查用
+	 * @param {(bytes: Buffer, caption: string) => Promise<boolean>} [deps.sendToMaster] 审查通过后发给主人（index.js 注入）
 	 * @param {(level: string, msg: string) => void} [deps.log]
 	 * @param {typeof fetch} [deps.fetchImpl]
 	 */
-	constructor({ db, clock, getConfig, log = () => {}, fetchImpl }) {
-		this.db = db; this.clock = clock; this.getConfig = getConfig; this.log = log;
+	constructor({ db, clock, getConfig, callLlm = null, sendToMaster = null, log = () => {}, fetchImpl }) {
+		this.db = db; this.clock = clock; this.getConfig = getConfig; this.callLlm = callLlm; this.sendToMaster = sendToMaster; this.log = log;
 		this.fetch = fetchImpl ?? ((...a) => fetch(...a));
 		this.lastPing = { at: 0, ok: false, info: null };
 	}
@@ -54,6 +64,11 @@ export class ImageGen {
 			steps: Math.round(num(c.steps, 40, 4, 80)),
 			cfg: num(c.cfg, 4, 1, 20),
 			shift: num(c.shift, 3.1, 0.5, 10),
+			styles: Array.isArray(c.styles) ? c.styles.map((x) => String(x).trim()).filter(Boolean).slice(0, 8) : [],
+			review: c.review !== false,
+			sendToMaster: c.sendToMaster === true,
+			hideWindow: c.hideWindow !== false,
+			promptMin: Math.round(num(c.promptMin, 500, 100, 5000)),
 			autoPaint: c.autoPaint !== false,
 			autoPerDay: Math.round(num(c.autoPerDay, 1, 0, 6)),
 			maxPromptChars: Math.round(num(c.maxPromptChars, 1200, 100, 3000))
@@ -72,6 +87,22 @@ export class ImageGen {
 			this.lastPing = { at: Date.now(), ok: false, info: null };
 		}
 		return this.lastPing;
+	}
+
+	/** 把 Comfy Desktop 窗口藏起来（不关进程，画完她还要用）。失败无感。 */
+	async hideComfyWindow() {
+		const cmd = [
+			"Add-Type -Namespace MF -Name U -MemberDefinition '[DllImport(\"user32.dll\")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);'",
+			"Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -match 'Comfy' -and $_.MainWindowHandle -ne 0 } | ForEach-Object { [MF.U]::ShowWindow($_.MainWindowHandle, 0) | Out-Null }"
+		].join('; ');
+		try {
+			await new Promise((resolve) => {
+				execFile('powershell', ['-NoProfile', '-NonInteractive', '-Command', cmd], { timeout: 8000, windowsHide: true }, () => resolve());
+			});
+			return true;
+		} catch {
+			return false;
+		}
 	}
 
 	workflow({ prompt, width, height, steps, seed, prefix }) {
@@ -109,7 +140,6 @@ export class ImageGen {
 			if (j?.error) return { ok: false, error: `ComfyUI 拒绝：${JSON.stringify(j.error).slice(0, 200)}` };
 			const id = j?.prompt_id;
 			if (!id) return { ok: false, error: 'ComfyUI 没返回 prompt_id' };
-			// 轮询（最多 240 秒：12GB 显存 1024×1024 约 30~90 秒）
 			const deadline = Date.now() + 240_000;
 			while (Date.now() < deadline) {
 				await new Promise((r) => setTimeout(r, 2500));
@@ -138,32 +168,72 @@ export class ImageGen {
 		}
 	}
 
-	/** 生成并落盘到本地画册；顺便记一条自记忆。返回 { ok, file, bytes, prompt }。 */
-	async paint({ prompt, width, height, steps, remember = true, note = '' } = {}) {
+	/** 画完审查：画面是否正常（噪声/乱码/主体变形/完全跑题）。没有视觉模型时放行。 */
+	async reviewImage({ bytes, prompt }) {
+		if (typeof this.callLlm !== 'function' || bytes.length === 0) return { pass: true, reason: 'no-reviewer' };
+		try {
+			const raw = await this.callLlm(
+				`这是一张 AI 生成的图，画面描述是：「${String(prompt).slice(0, 600)}」。` +
+				'检查画面是否正常：1) 不是噪声 / 纯色 / 乱码图；2) 主体完整、没有严重变形或糊成一团；3) 大体符合描述。' +
+				'只回答 PASS 或 FAIL：一句原因（不超过 30 字）。',
+				{ maxTokens: 80, images: [{ data: bytes.toString('base64'), mediaType: 'image/png' }] }
+			);
+			const t = String(raw ?? '').trim();
+			if (/^FAIL/i.test(t)) return { pass: false, reason: t.replace(/^FAIL[:：]?\s*/i, '').slice(0, 60) };
+			return { pass: true, reason: t.slice(0, 60) };
+		} catch {
+			return { pass: true, reason: '审查没跑成，放行' };
+		}
+	}
+
+	/**
+	 * 作画完整流程：藏窗口 → 生成 → 审查（不过重试一次）→ 存画册 + 记记忆 →（可选）发主人。
+	 * 返回 { ok, file, bytes, prompt, width, height, reviews } 或 { ok:false, error }。
+	 */
+	async paint({ prompt, width, height, steps, remember = true, note = '', sendToMaster } = {}) {
 		const cfg = this.cfg();
 		if (!cfg.enabled) return { ok: false, error: '画图功能没开（面板「画册」里打开）' };
-		const gen = await this.generate({ prompt, width, height, steps });
-		if (!gen.ok) return gen;
+		const base = String(prompt ?? '').trim().slice(0, cfg.maxPromptChars);
+		if (base === '') return { ok: false, error: '提示词为空' };
+		const styleText = cfg.styles.length > 0 ? `\n风格：${cfg.styles.join('、')}。` : '';
+		const fullPrompt = base + styleText;
+		if (cfg.hideWindow) await this.hideComfyWindow();
+		const reviews = [];
+		let gen = null;
+		for (let i = 0; i < MAX_TRIES; i += 1) {
+			gen = await this.generate({ prompt: fullPrompt, width, height, steps });
+			if (!gen.ok) return { ...gen, reviews };
+			if (!cfg.review) { reviews.push({ pass: true, reason: skiptext() }); break; }
+			const rv = await this.reviewImage({ bytes: gen.bytes, prompt: fullPrompt });
+			reviews.push(rv);
+			if (rv.pass) break;
+			this.log('warn', `[fish-soul] 画完审查没通过（第 ${i + 1} 次）：${rv.reason}`);
+			gen = null;
+		}
+		if (gen === null) return { ok: false, error: `审查没通过：${reviews.map((x) => x.reason).filter(Boolean).join(' / ') || '画面不正常'}`, reviews };
 		const dir = galleryDir();
 		if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 		const file = `fish-${stamp(Date.now())}.png`;
 		try { writeFileSync(join(dir, file), gen.bytes); } catch (error) { return { ok: false, error: `存图失败：${error instanceof Error ? error.message : error}` }; }
-		// 索引
 		const list = Array.isArray(getKv(this.db, GALLERY_KV, [])) ? getKv(this.db, GALLERY_KV, []) : [];
-		list.unshift({ file, prompt: String(prompt ?? '').slice(0, 300), at: this.clock.now(), width: gen.width, height: gen.height, note: String(note ?? '').slice(0, 120) });
+		list.unshift({ file, prompt: fullPrompt.slice(0, 600), at: this.clock.now(), width: gen.width, height: gen.height, note: String(note ?? '').slice(0, 120), reviewed: cfg.review });
 		while (list.length > GALLERY_MAX) { const old = list.pop(); try { unlinkSync(join(dir, old.file)); } catch { /* 文件没了就算了 */ } }
 		try { setKv(this.db, GALLERY_KV, list); } catch { /* 索引写失败不影响图 */ }
-		// 自记忆：她画了什么（以后能回忆）
 		if (remember) {
 			try {
 				insertMemory(this.db, null, {
 					ownerId: 'self', channel: 'imagegen', kind: 'event', importance: 1,
-					content: `我今天画了一张图：${String(prompt).slice(0, 80)}${note ? `（${note}）` : ''}`,
+					content: `我今天画了一张图：${String(base).slice(0, 80)}${note ? `（${note}）` : ''}`,
 					evidence: '自己用 Qwen-Image 画的'
 				}, this.clock.now());
 			} catch { /* 记不下来不影响出图 */ }
 		}
-		return { ok: true, file, bytes: gen.bytes.length, width: gen.width, height: gen.height, prompt: String(prompt).slice(0, 300) };
+		let sent = false;
+		const wantSend = typeof sendToMaster === 'boolean' ? sendToMaster : cfg.sendToMaster;
+		if (wantSend && typeof this.sendToMaster === 'function') {
+			try { sent = (await this.sendToMaster(gen.bytes, `画好了：${String(base).slice(0, 120)}\n${styleText ? `（风格：${cfg.styles.join('、')}）` : ''}`)) === true; } catch { sent = false; }
+		}
+		return { ok: true, file, bytes: gen.bytes.length, width: gen.width, height: gen.height, prompt: fullPrompt.slice(0, 600), reviews, sent };
 	}
 
 	/** 画册列表（新→旧）。 */
@@ -187,3 +257,5 @@ export class ImageGen {
 		try { return { bytes: readFileSync(p), path: p }; } catch { return null; }
 	}
 }
+
+function skiptext() { return '审查已关'; }
