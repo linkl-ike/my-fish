@@ -349,7 +349,7 @@ export function registerRoutes(ctx, deps) {
 					// 只限她自发的主动消息；你交代的提醒不占这个数
 					const rawMax = Number(body.dailyMaxCount ?? DEFAULT_DAILY_MAX);
 					const dailyMaxCount = Number.isFinite(rawMax) ? Math.min(50, Math.max(0, Math.floor(rawMax))) : DEFAULT_DAILY_MAX;
-					const activeHours = Array.isArray(body.activeHours) ? body.activeHours : [8, 24];
+					const activeHours = Array.isArray(body.activeHours) ? body.activeHours : [0, 24];
 					const [h0, h1] = activeHours;
 					if (!(h0 >= 0 && h0 <= 23 && h1 >= 1 && h1 <= 24 && h0 < h1)) {
 						return send(200, { ok: false, error: 'activeHours 必须满足 0<=start<end<=24' });
@@ -366,8 +366,15 @@ export function registerRoutes(ctx, deps) {
 					// #75：真实时间护栏（分钟，0 = 关掉）；日程开关
 					const rawRealGap = Number(body.idleRealGapMinutes ?? DEFAULT_IDLE_REAL_GAP_MIN);
 					const idleRealGapMinutes = Number.isFinite(rawRealGap) ? Math.min(1440, Math.max(0, Math.floor(rawRealGap))) : DEFAULT_IDLE_REAL_GAP_MIN;
-					const rawIdleHours = Number(body.idleTriggerHours ?? 6);
-					const idleTriggerHours = Number.isFinite(rawIdleHours) ? Math.min(168, Math.max(0, Math.floor(rawIdleHours))) : 6;
+					const rawIdleHours = Number(body.idleTriggerHours ?? 0);
+					const idleTriggerHours = Number.isFinite(rawIdleHours) ? Math.min(168, Math.max(0, Math.floor(rawIdleHours))) : 0;
+					// 睡觉时段（跨午夜）：[入睡, 起床]，小时 0~23
+					const sleepRaw = Array.isArray(body.sleepHours) ? body.sleepHours.map(Number).slice(0, 2) : [23, 8];
+					const sleepHours = sleepRaw.length === 2 && sleepRaw.every((h) => Number.isFinite(h) && h >= 0 && h <= 23) ? sleepRaw : [23, 8];
+					const rawGap = Number(body.minGapMinutes ?? 40);
+					const minGapMinutes = Number.isFinite(rawGap) ? Math.min(720, Math.max(0, Math.floor(rawGap))) : 40;
+					const rawIdleReal = Number(body.idleTriggerRealMinutes ?? 40);
+					const idleTriggerRealMinutes = Number.isFinite(rawIdleReal) ? Math.min(720, Math.max(0, Math.floor(rawIdleReal))) : 40;
 					saveConfig({
 						proactive: {
 							enabled: body.enabled !== false,
@@ -375,6 +382,9 @@ export function registerRoutes(ctx, deps) {
 							activeHours: [h0, h1],
 							idleTriggerHours,
 							idleRealGapMinutes,
+							sleepHours,
+							minGapMinutes,
+							idleTriggerRealMinutes,
 							scheduleEnabled: body.scheduleEnabled !== false,
 							targets: {
 								masterCanonicalId: body.targets?.masterCanonicalId ?? 'user:master',

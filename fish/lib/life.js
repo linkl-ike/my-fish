@@ -24,6 +24,15 @@ import { douyinVideoIds } from './douyin-delivery.js';
 /** channel_id → 平台（和 gateway.platformOf 一致；这里不 import gateway，免得循环依赖）。 */
 const platformOf = (channelId) => (String(channelId ?? '').startsWith('bili:') ? 'bili' : String(channelId ?? '').startsWith('douyin:') ? 'douyin' : 'qq');
 
+/** 当前小时是否在睡眠区间（支持跨午夜，如 [23, 8]）。 */
+function inSleepRange(hour, sleepHours) {
+	if (!Array.isArray(sleepHours) || sleepHours.length < 2) return false;
+	const s = ((Number(sleepHours[0]) % 24) + 24) % 24;
+	const e = ((Number(sleepHours[1]) % 24) + 24) % 24;
+	if (!Number.isFinite(s) || !Number.isFinite(e) || s === e) return false;
+	return s < e ? (hour >= s && hour < e) : (hour >= s || hour < e);
+}
+
 const TICK_VIRTUAL_MS = 15 * 60_000;
 const DREAM_IDLE_VIRTUAL_MS = 3 * 3600_000;
 const DREAM_MIN_REAL_GAP_MS = 30_000;
@@ -31,7 +40,13 @@ const PROACTIVE_REAL_COOLDOWN_MS = 15_000;
 const PROACTIVE_MIN_GAP_VIRTUAL_MS = 60 * 60_000;
 /** 空闲兜底的真实时间护栏：主人刚说过话就别立刻主动开口（#75）。0 = 关掉这道护栏。 */
 export const DEFAULT_IDLE_REAL_GAP_MIN = 30;
-export const DEFAULT_DAILY_MAX = 10;
+export const DEFAULT_DAILY_MAX = 20;
+/** 主动开口的最小真实间隔（分钟）：隔这么久才可能再主动找主人聊。 */
+export const DEFAULT_MIN_GAP_MINUTES = 40;
+/** 主人多久没动静（真实分钟）她才会主动找话题。 */
+export const DEFAULT_IDLE_TRIGGER_REAL_MINUTES = 40;
+/** 睡觉时段（跨午夜）：这段时间她也在睡，不发消息。 */
+export const DEFAULT_SLEEP_HOURS = [23, 8];
 /** 两轮刷视频之间的最短虚拟间隔。perDay 是上限，真正卡轮数的是这个间隔 ÷ idle 窗口长度。 */
 const BROWSE_MIN_GAP_VIRTUAL_MS = 30 * 60_000;
 const BROWSE_MIN_GAP_REAL_MS = 20 * 60_000;
@@ -318,12 +333,14 @@ export class LifeEngine {
 		await this.idleProactive(day, parts, p);
 	}
 
-	/** 现在（虚拟钟）允许主动开口吗：总开关 + 活跃时段。tick 和到点闹钟走同一道门。 */
+	/** 现在（虚拟钟）允许主动开口吗：总开关 + 睡眠时段 + 活跃时段。tick 和到点闹钟走同一道门。 */
 	proactiveAllowedNow() {
 		const p = this.getConfig().proactive ?? {};
 		if (p.enabled === false) return false;
-		const [activeStart, activeEnd] = p.activeHours ?? [8, 24];
 		const hour = this.clock.getRoleDateParts().hour;
+		// 睡觉时段（默认 23:00 ~ 08:00，支持跨午夜）：她也在睡，不发消息
+		if (inSleepRange(hour, p.sleepHours ?? DEFAULT_SLEEP_HOURS)) return false;
+		const [activeStart, activeEnd] = p.activeHours ?? [8, 24];
 		return hour >= activeStart && hour < activeEnd;
 	}
 
@@ -428,9 +445,11 @@ export class LifeEngine {
 	/** 空闲兜底：好久没人说话，主动找主人聊一句。 */
 	async idleProactive(day, parts, p) {
 		const nowVirtual = this.clock.now();
+		// 虚拟间隔默认 0（=不挡）：用下面的真实分钟间隔控制节奏，更贴近"隔几十分钟来找你"
+		const minGapVirtual = Math.max(0, Number(p.idleMinGapVirtualMinutes ?? 0)) * 60_000;
 		const botAllowed = (day.proactive_count ?? 0) < this.dailyMax() &&
 			(day.last_proactive_at === null || day.last_proactive_at === undefined ||
-			 nowVirtual - day.last_proactive_at >= PROACTIVE_MIN_GAP_VIRTUAL_MS);
+			 nowVirtual - day.last_proactive_at >= minGapVirtual);
 		if (!botAllowed) return;
 		// 时间驱动兜底：处在 idle 时段且主人距上次互动 > idleTriggerHours（虚拟钟）
 		const slot = this.currentSlot(day, parts);
@@ -440,14 +459,22 @@ export class LifeEngine {
 		// #75：主人最近一次互动取「主人这一路」和「任何通道有人说她」里较新的那个——
 		// 桌面端消息以前不登记互动，主人刚说完话她却按"好久没说话"开口（#75）。
 		const lastSeen = Math.max(this.lastInteractionVirtualMs.get(masterOwner) ?? 0, this.lastAnyInteractionVirtualMs);
-		const idleHours = p.idleTriggerHours ?? 6;
-		if (nowVirtual - lastSeen < idleHours * 3600_000) return;
+		// 虚拟小时触发：默认 0（不用，改看下面真实分钟）
+		const idleHours = Number(p.idleTriggerHours ?? 0);
+		if (idleHours > 0 && nowVirtual - lastSeen < idleHours * 3600_000) return;
 		// 真实时间护栏：刚聊完（默认 30 分钟内）不主动开口——虚拟钟加速时也挡得住
 		const realGapMin = Number(p.idleRealGapMinutes ?? DEFAULT_IDLE_REAL_GAP_MIN);
 		if (Number.isFinite(realGapMin) && realGapMin > 0 && this.lastAnyInteractionRealMs > 0 &&
 			Date.now() - this.lastAnyInteractionRealMs < realGapMin * 60_000) return;
 		const target = this.masterChannel(p);
 		if (target === '' || !this.isWhitelisted(target, p) || !this.cooledFor(target)) return;
+		// 真实间隔 1：她上一次主动开口到现在至少 minGapMinutes 分钟（默认 40）
+		const minGapReal = Math.max(0, Number(p.minGapMinutes ?? DEFAULT_MIN_GAP_MINUTES)) * 60_000;
+		const lastProactiveReal = this.lastProactiveReal.get(platformOf(target)) ?? 0;
+		if (minGapReal > 0 && lastProactiveReal > 0 && Date.now() - lastProactiveReal < minGapReal) return;
+		// 真实间隔 2：主人自己至少 idleTriggerRealMinutes 分钟没说话（默认 40），刚聊完不打扰
+		const idleTriggerReal = Math.max(0, Number(p.idleTriggerRealMinutes ?? DEFAULT_IDLE_TRIGGER_REAL_MINUTES)) * 60_000;
+		if (idleTriggerReal > 0 && this.lastAnyInteractionRealMs > 0 && Date.now() - this.lastAnyInteractionRealMs < idleTriggerReal) return;
 
 		const platform = platformOf(target);
 		this.lastProactiveReal.set(platform, Date.now());

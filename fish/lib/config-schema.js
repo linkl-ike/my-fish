@@ -199,6 +199,14 @@ export function fishSoulConfigSchema(z) {
 			idleTriggerHours: z.number().default(6),
 			// #75：主人刚说过话就别立刻主动开口（真实分钟，0 = 关掉这道护栏）
 			idleRealGapMinutes: z.number().default(DEFAULT_IDLE_REAL_GAP_MIN),
+			// 睡觉时段（跨午夜）：这段时间她静默、不发消息；默认 23:00 ~ 08:00
+			sleepHours: z.array(z.number()).default([23, 8]),
+			// 主动开口的最小真实间隔（分钟）：默认 40 分钟一次
+			minGapMinutes: z.number().default(40),
+			// 主人多久没动静（真实分钟）她才会主动找话题；默认 40
+			idleTriggerRealMinutes: z.number().default(40),
+			// 虚拟间隔（分钟，0 = 不挡；节奏交给真实分钟）
+			idleMinGapVirtualMinutes: z.number().default(0),
 			// #75：自走日程开关。关掉 = 不生成日程、不注入时段、不用忙/闲卡住主动与刷视频
 			scheduleEnabled: z.boolean().default(true),
 			shareMaxPerDay: z.number().default(2), // 刷到想分享的视频，一天最多主动发几条
