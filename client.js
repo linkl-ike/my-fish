@@ -945,6 +945,10 @@ window.__ModuleLoader__.load({
               h("span", { style: styles.hint }, "点"))),
             h(Row, { label: "主动间隔（分钟）" }, h(Num, { value: proactive.minGapMinutes ?? 40, min: 5, max: 720, onChange: (v) => postJson(`${FISH}/life/proactive-config`, { minGapMinutes: v }).then(() => load()) })),
             h(Row, { label: "等你多久才找你（分钟）" }, h(Num, { value: proactive.idleTriggerRealMinutes ?? 40, min: 5, max: 720, onChange: (v) => postJson(`${FISH}/life/proactive-config`, { idleTriggerRealMinutes: v }).then(() => load()) })),
+            h(Row, { label: "主聊天地方（顺序）" }, h("span", { style: { display: "flex", gap: 8 } },
+              h(Select, { value: (proactive.targets?.channelPriority || ["douyin", "qq"])[0] ?? "douyin", options: [["douyin", "抖音私信"], ["qq", "QQ 私聊"], ["bili", "B站私信"]], onChange: (v) => saveChannelPriority([v, ((proactive.targets?.channelPriority || ["douyin", "qq"])[1] ?? "qq")]) }),
+              h(Select, { value: (proactive.targets?.channelPriority || ["douyin", "qq"])[1] ?? "qq", options: [["douyin", "抖音私信"], ["qq", "QQ 私聊"], ["bili", "B站私信"]], onChange: (v) => saveChannelPriority([((proactive.targets?.channelPriority || ["douyin", "qq"])[0] ?? "douyin"), v]) }))),
+            h("div", { style: styles.hint }, "刷到想分享的视频会按这个顺序发：抖音优先 → 原生视频卡片（点开就播）；抖音不可用再回 QQ 发链接。卡片需要在「通道与行为 → 抖音」里打开「发原生视频卡片」。"),
             h("div", { style: styles.hint }, `睡觉时段（默认 23:00 ~ 08:00）内她静默不发消息；平时主人安静 ${proactive.idleTriggerRealMinutes ?? 40} 分钟后，她每隔约 ${proactive.minGapMinutes ?? 40} 分钟可能主动来找你聊，每天最多 ${proactive.dailyMaxCount ?? 20} 条。`)),
           h(Card, { title: "回复行为 / 主动性" },
             h(Row, { label: "心情影响语气" }, h(Switch, { checked: behaviorS?.config?.moodAffects !== false, onChange: (v) => postJson(`${FISH}/behavior/config`, { moodAffects: v }).then((r) => { notify(r && r.ok ? "已保存" : "保存失败"); void load(); }) })),
@@ -1017,6 +1021,8 @@ window.__ModuleLoader__.load({
         } finally { setMemBusy(false); }
       };
       // 画图（本机 ComfyUI / Qwen-Image）
+      // 主聊天地方（分享/主动消息的通道顺序）
+      const saveChannelPriority = (order) => postJson(`${FISH}/life/proactive-config`, { targets: { channelPriority: order } }).then(() => load());
       const saveImagegen = async (patch) => {
         const r = await postJson(`${FISH}/imagegen/config`, patch);
         notify(r && r.ok ? "已保存" : "保存失败");
