@@ -354,8 +354,14 @@ export function registerRoutes(ctx, deps) {
 					if (!(h0 >= 0 && h0 <= 23 && h1 >= 1 && h1 <= 24 && h0 < h1)) {
 						return send(200, { ok: false, error: 'activeHours 必须满足 0<=start<end<=24' });
 					}
+					const prevTargets = getConfig()?.proactive?.targets ?? {};
 					const groups = Array.isArray(body.targets?.selfGroupChannelIds)
-						? body.targets.selfGroupChannelIds : [];
+						? body.targets.selfGroupChannelIds : (Array.isArray(prevTargets.selfGroupChannelIds) ? prevTargets.selfGroupChannelIds : []);
+					// 「主聊天地方」顺序（douyin / qq / bili），没传就保留原来的
+					const priorityRaw = Array.isArray(body.targets?.channelPriority) ? body.targets.channelPriority : null;
+					const channelPriority = priorityRaw !== null
+						? priorityRaw.map((v) => String(v)).filter((v) => ['douyin', 'qq', 'bili'].includes(v)).slice(0, 3)
+						: (Array.isArray(prevTargets.channelPriority) ? prevTargets.channelPriority : ['douyin', 'qq']);
 					if (!groups.every((g) => typeof g === 'string' && g.startsWith('group:'))) {
 						return send(200, { ok: false, error: 'selfGroupChannelIds 必须全部以 group: 开头' });
 					}
@@ -387,9 +393,10 @@ export function registerRoutes(ctx, deps) {
 							idleTriggerRealMinutes,
 							scheduleEnabled: body.scheduleEnabled !== false,
 							targets: {
-								masterCanonicalId: body.targets?.masterCanonicalId ?? 'user:master',
-								masterPrivateChannelId: masterChannel,
-								selfGroupChannelIds: groups
+								masterCanonicalId: body.targets?.masterCanonicalId ?? prevTargets.masterCanonicalId ?? 'user:master',
+								masterPrivateChannelId: masterChannel || prevTargets.masterPrivateChannelId || '',
+								selfGroupChannelIds: groups,
+								channelPriority
 							}
 						}
 					});
