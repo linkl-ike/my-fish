@@ -213,7 +213,9 @@ export function fishSoulConfigSchema(z) {
 			targets: z.object({
 				masterCanonicalId: z.string().default('user:master'),
 				masterPrivateChannelId: z.string().default(''),
-				selfGroupChannelIds: z.array(z.string()).default([])
+				selfGroupChannelIds: z.array(z.string()).default([]),
+				// 「主聊天地方」顺序：分享视频等主动消息按这个顺序找通道（douyin = 抖音原生卡片，qq = QQ 链接）
+				channelPriority: z.array(z.string()).default(['douyin', 'qq'])
 			}).default({})
 		}).default({})
 	});
