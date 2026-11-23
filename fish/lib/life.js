@@ -404,15 +404,26 @@ export class LifeEngine {
 	 */
 	async deliverOne(d, nowVirtual) {
 		const botInitiated = BOT_ORIGINS.has(d.origin ?? 'user');
-		const platform = platformOf(d.channel_id);
+		const proactiveCfg = this.getConfig().proactive ?? {};
+		// 分享视频：按「主聊天地方」顺序试——抖音优先（原生卡片），失败回落 QQ（链接）
+		const candidates = d.origin === 'share'
+			? (this.masterChannels(proactiveCfg).length > 0 ? this.masterChannels(proactiveCfg) : [d.channel_id])
+			: [d.channel_id];
+		const platform = platformOf(candidates[0]);
 		const meta = { origin: d.origin === 'share' ? 'share' : botInitiated ? 'dream' : 'user', pendingId: d.id };
 		// 无论成败都计物理冷却，防止加速模式连发封号
 		this.lastProactiveReal.set(platform, Date.now());
 		let ok = false;
-		try {
-			ok = (await this.deliver(d.channel_id, d.reason, meta)) === true;
-		} catch (error) {
-			this.log('error', `[fish-soul] 主动开口失败（${d.channel_id}）：${String(error instanceof Error ? error.message : error)}`);
+		const tryOrder = [...new Set([...candidates, d.channel_id])];
+		for (const ch of tryOrder) {
+			if (ch !== d.channel_id && !this.isWhitelisted(ch, proactiveCfg, d.origin)) continue;
+			try {
+				ok = (await this.deliver(ch, d.reason, meta)) === true;
+			} catch (error) {
+				ok = false;
+				this.log('error', `[fish-soul] 主动开口失败（${ch}）：${String(error instanceof Error ? error.message : error)}`);
+			}
+			if (ok) break;
 		}
 		this.lastProactiveReal.set(platform, Date.now());
 		if (ok) {
@@ -545,6 +556,41 @@ export class LifeEngine {
 		if (explicit !== '') return explicit;
 		const qq = String(this.getConfig().masterQqUin ?? '');
 		return qq !== '' ? `private:${qq}` : '';
+	}
+
+	/** 主人的抖音私聊目标（原生卡片分享用）；没开卡片分享 / 认不出主人返回 null。 */
+	douyinShareTarget() {
+		try {
+			const cfg = this.getConfig();
+			const d = cfg.douyin ?? {};
+			if (d.enabled !== true || d.shareCard !== true) return null;
+			const identity = String(d.masterUid ?? '').trim();
+			if (!/^douyin:\d+$/.test(identity)) return null;
+			const name = String(d.masterName ?? '').trim();
+			if (name === '') return null;
+			const convId = String(getKv(this.db, `douyin.convId.${identity}`, '') ?? '').trim();
+			if (!/^0:1:\d+:\d+$/.test(convId)) return null;
+			return { channelId: `douyin:${name}`, uid: identity.replace(/^douyin:/, ''), convId, name };
+		} catch { return null; }
+	}
+
+	/** 主动消息的候选通道（按「主聊天地方」顺序）：分享视频时优先抖音原生卡片，失败再回 QQ 链接。 */
+	masterChannels(proactiveCfg) {
+		const order = Array.isArray(proactiveCfg?.targets?.channelPriority) ? proactiveCfg.targets.channelPriority : ['douyin', 'qq'];
+		const out = [];
+		for (const k of order) {
+			if (k === 'douyin') {
+				const dy = this.douyinShareTarget();
+				if (dy !== null) out.push(dy.channelId);
+			} else if (k === 'qq') {
+				const c = this.masterChannel(proactiveCfg);
+				if (c !== '') out.push(c);
+			} else if (k === 'bili') {
+				const b = this.getConfig().bili ?? {};
+				if (b.enabled === true && b.proactive === true && String(b.masterUid ?? '') !== '') out.push(`bili:${b.masterUid}`);
+			}
+		}
+		return out;
 	}
 
 	/**
