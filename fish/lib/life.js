@@ -15,6 +15,9 @@
  * 到点提醒（#80）：tick 是 15 分钟一轮，光靠它到点的提醒平均晚 7.5 分钟。所以另挂一个闹钟
  * （armPendingAlarm），按最近一条 due_at 精确醒来，只跑到点投递那一段，不重跑日程 / Dream。
  */
+import { readdirSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { VirtualClock } from './clock.js';
 import { getKv, setKv, getProfile, setProfile } from './db.js';
 import { PROFILE_FIELDS, mergeProfileFields, settleAffinity, ensureBirthdayPending, stageBase } from './soul-memory.js';
@@ -209,10 +212,43 @@ export class LifeEngine {
 	}
 
 	/** 15 分钟 tick（互斥锁：上轮未返回直接跳过，审查 #03）。 */
+	/**
+	 * 上下文体积保护：DSH 会话文件涨到阈值就安排换新会话（记忆/归档都在 soul.db，不受影响）。
+	 * 解决「聊太久、会话上下文撑爆模型请求 → 每轮都运行失败」的问题。
+	 */
+	guardSessionContext() {
+		try {
+			const limit = Math.max(200_000, Number(getKv(this.db, 'session.limitBytes', 1_600_000)) || 1_600_000);
+			const rows = this.db.prepare("SELECT session_id FROM chat_session WHERE status = 'active'").all();
+			if (rows.length === 0) return;
+			const home = String(process.env.DSH_HOME ?? '').trim() || join(homedir(), '.dsh');
+			const root = join(home, 'sessions');
+			const ids = new Set(rows.map((r) => String(r.session_id)));
+			let biggest = 0;
+			for (const wsDir of readdirSync(root)) {
+				let sub;
+				try { sub = readdirSync(join(root, wsDir)); } catch { continue; }
+				for (const sessDir of sub) {
+					if (!ids.has(sessDir)) continue;
+					try {
+						const st = statSync(join(root, wsDir, sessDir, 'session.v4.jsonl.zstd'));
+						if (st.size > biggest) biggest = st.size;
+					} catch { /* 没这个文件就跳过 */ }
+				}
+			}
+			if (biggest <= limit) return;
+			const last = Number(getKv(this.db, 'persona.freshAfter', 0)) || 0;
+			if (Date.now() - last < 10 * 60_000) return; // 刚安排过，等它生效
+			setKv(this.db, 'persona.freshAfter', Date.now());
+			this.log('info', '[fish-soul] 会话上下文到 ' + Math.round(biggest / 1024) + ' KB（阈值 ' + Math.round(limit / 1024) + ' KB），已安排换新会话（记忆/归档保留）');
+		} catch { /* 保护失败不影响主流程 */ }
+	}
+
 	async tick() {
 		if (this.stopped) return; // 卸载后残余的一轮：别对已停止的 gateway / 已关闭的 db 干活
 		if (this.isTickRunning) return;
 		this.isTickRunning = true;
+		try { this.guardSessionContext(); } catch { /* 保护失败不影响主流程 */ }
 		try {
 			const characterId = 'feiyu';
 			const parts = this.clock.getRoleDateParts();
